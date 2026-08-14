@@ -277,6 +277,13 @@ export default function NewJob() {
                     }}
                   />
 
+                  <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary-soft/40 px-4 py-3 text-xs">
+                    <span>💡 Chỉ muốn tải video/âm thanh từ YouTube, TikTok... về máy (không qua dịch AI)?</span>
+                    <Link to="/downloader" className="font-semibold text-primary underline">
+                      👉 Mở công cụ Tải Nhanh
+                    </Link>
+                  </div>
+
                   <h2 className="text-lg font-semibold">Chọn nguồn video</h2>
 
                   <div className="grid gap-2 sm:grid-cols-2">

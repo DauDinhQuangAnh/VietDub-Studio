@@ -35,6 +35,9 @@ export default function NavBar() {
               <Link to="/studio" className="btn-ghost">
                 Studio
               </Link>
+              <Link to="/downloader" className="btn-ghost">
+                📥 Tải Video
+              </Link>
               <Link to="/voices" className="btn-ghost">
                 Giọng của tôi
               </Link>

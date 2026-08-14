@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
-from backend.routers import admin, auth, jobs, meta, public, voices  # noqa: E402
+from backend.routers import admin, auth, downloader, jobs, meta, public, voices  # noqa: E402
 
 
 def _run_migrations() -> None:
@@ -56,6 +56,7 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
+app.include_router(downloader.router, prefix="/api")
 app.include_router(meta.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(public.router, prefix="/api")

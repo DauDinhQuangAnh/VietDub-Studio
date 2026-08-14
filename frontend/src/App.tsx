@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider, RequireAdmin, RequireAuth } from "./auth/AuthContext";
 import GlobalLoadingBar from "./components/GlobalLoadingBar";
 import Admin from "./pages/Admin";
+import Downloader from "./pages/Downloader";
 import Editor from "./pages/Editor";
 import JobDetail from "./pages/JobDetail";
 import Landing from "./pages/Landing";
@@ -58,6 +59,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <Voices />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/downloader"
+            element={
+              <RequireAuth>
+                <Downloader />
               </RequireAuth>
             }
           />
