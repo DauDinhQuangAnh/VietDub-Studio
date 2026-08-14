@@ -15,6 +15,7 @@ nhan khong OOM giua cac buoc, dac biet la buoc transcribe (large-v3) roi den
 align/diarize. Xem HANDOFF.md muc "Van de dang mo".
 """
 
+import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -78,8 +79,12 @@ class TranscriptionPipeline:
 
         denoised_audio = self.work_dir / "audio_denoised.wav"
         notify("denoise")
-        with self.denoiser_factory() as denoiser:
-            self._stage("denoise", denoiser.denoise, raw_audio, denoised_audio)
+        try:
+            with self.denoiser_factory() as denoiser:
+                self._stage("denoise", denoiser.denoise, raw_audio, denoised_audio)
+        except Exception as exc:
+            print(f"[denoise] Bỏ qua khử ồn DeepFilterNet ({exc}) - dùng audio gốc")
+            shutil.copy(raw_audio, denoised_audio)
 
         notify("transcribe")
         with self.transcriber_factory() as transcriber:

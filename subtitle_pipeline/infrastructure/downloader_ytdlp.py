@@ -156,17 +156,21 @@ def friendly_yt_dlp_error(message: str) -> str:
     lower = message.lower()
     if _is_youtube_cookie_error(message):
         return (
-            "YouTube yeu cau xac thuc (nghi ngo bot) nen khong doc/tai duoc video nay. "
-            "He thong da thu tu lam moi cookie nhung chua thanh cong. Vao Admin bam "
-            '"Lam moi cookie", hoac admin can chay setup dang nhap YouTube 1 lan '
-            "theo huong dan trong .env.example."
+            "Nền tảng (YouTube/TikTok/Bilibili) yêu cầu xác thực bot nên chưa đọc được video. "
+            "Hệ thống đã thử tự làm mới cookie nhưng chưa thành công. Vào Admin bấm "
+            '"Làm mới cookie", hoặc admin cần chạy setup đăng nhập 1 lần '
+            "theo hướng dẫn trong .env.example."
         )
+    if "tiktok" in lower and ("login" in lower or "verify" in lower or "captcha" in lower):
+        return "TikTok yêu cầu đăng nhập/xác minh captcha. Hãy cập nhật cookie trong trang Admin."
+    if "bilibili" in lower and ("risk control" in lower or "login" in lower):
+        return "Bilibili yêu cầu xác thực tài khoản. Hãy cập nhật cookie Bilibili trong trang Admin."
     if "unsupported url" in lower:
-        return "Link nay chua duoc yt-dlp ho tro."
+        return "Link này chưa được yt-dlp hỗ trợ."
     if "private" in lower:
-        return "Video dang private hoac khong the truy cap cong khai."
+        return "Video đang private hoặc không thể truy cập công khai."
     if "http error 403" in lower or "forbidden" in lower:
-        return "Nguon video tu choi stream nay. Hay thu lai hoac chon 720p/480p."
+        return "Nguồn video từ chối stream này. Hãy thử lại hoặc chọn 720p/480p."
     if any(
         marker in lower
         for marker in (
@@ -177,7 +181,7 @@ def friendly_yt_dlp_error(message: str) -> str:
             "updating yt-dlp",
         )
     ):
-        return "yt-dlp khong doc duoc video nay; co the can cap nhat yt-dlp."
+        return "yt-dlp không đọc được video này; có thể cần cập nhật yt-dlp."
     return message
 
 

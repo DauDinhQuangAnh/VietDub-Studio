@@ -28,6 +28,7 @@ from subtitle_pipeline.export.formats import FORMAT_WRITERS, SubtitleStyle
 from subtitle_pipeline.infrastructure.audio import trim_media
 from subtitle_pipeline.infrastructure.downloader_ytdlp import download_video
 from subtitle_pipeline.infrastructure.transcriber_faster_whisper import FasterWhisperTranscriber
+from subtitle_pipeline.infrastructure.transcriber_groq import CloudGroqTranscriber
 
 
 def _resolve_custom_voice_ref_audio(custom_voice_id: str | None) -> Path | None:
@@ -59,7 +60,9 @@ def _build_dub_options(options: dict) -> DubRenderOptions:
         subtitle_style=SubtitleStyle(**(subtitle.get("style") or {})),
         render_quality=output.get("quality", "balanced"),
         pronunciation=resolve_pronunciation_glossary(
-            target_language, translation.get("pronunciation", "")
+            target_language,
+            translation.get("pronunciation", ""),
+            translation.get("pronunciation_domains"),
         ),
         custom_voice_ref_audio=_resolve_custom_voice_ref_audio(dubbing.get("custom_voice_id")),
     )
@@ -116,16 +119,20 @@ def process_video_job(job_id: str, options: dict | None = None) -> None:
             on_stage("download")
         input_path = _resolve_input(job, source)
 
-        # Ep cung ngon ngu nguon neu nguoi dung chon (mac dinh auto-detect).
-        transcriber_factory = None
+        execution_mode = options.get("execution_mode") or config.execution_mode
         forced_language = source.get("source_language")
-        if forced_language:
+
+        if execution_mode == "CLOUD_FREE_API":
+            transcriber_factory = lambda: CloudGroqTranscriber(language=forced_language)  # noqa: E731
+        elif forced_language:
             transcriber_factory = lambda: FasterWhisperTranscriber(  # noqa: E731
                 config.whisper_model,
                 config.whisper_compute_type,
                 config.device,
                 language=forced_language,
             )
+        else:
+            transcriber_factory = None
 
         work_dir = Path(job.output_dir) / "_work"
         pipeline = TranscriptionPipeline(

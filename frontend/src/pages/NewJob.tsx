@@ -2,12 +2,14 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import ExecutionEngineToggle, { type ExecutionMode } from "../components/ExecutionEngineToggle";
 import NavBar from "../components/NavBar";
 import Spinner from "../components/Spinner";
 import { api } from "../lib/api";
 import {
   FONT_CHOICES,
   languageName,
+  PRONUNCIATION_DOMAIN_CHOICES,
   RENDER_QUALITY_CHOICES,
   TRANSLATE_PRESETS,
   TRIM_CHOICES,
@@ -267,7 +269,16 @@ export default function NewJob() {
 
               {step === 0 && (
                 <div className="space-y-5">
+                  <ExecutionEngineToggle
+                    mode={options.execution_mode || "CLOUD_FREE_API"}
+                    onChange={(m: ExecutionMode) => {
+                      localStorage.setItem("vietdub_execution_mode", m);
+                      setOptions((o) => ({ ...o, execution_mode: m }));
+                    }}
+                  />
+
                   <h2 className="text-lg font-semibold">Chọn nguồn video</h2>
+
                   <div className="grid gap-2 sm:grid-cols-2">
                     {(["upload", "download"] as SourceMode[]).map((mode) => (
                       <button
@@ -708,48 +719,104 @@ export default function NewJob() {
                           {p.label}
                         </button>
                       ))}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <label className="label">
+                        Lĩnh vực / Chuyên ngành phát âm (Đã chọn{" "}
+                        {(options.translation.pronunciation_domains || ["it"]).length} /{" "}
+                        {PRONUNCIATION_DOMAIN_CHOICES.length})
+                      </label>
+                      <div className="flex items-center gap-2 text-xs">
+                        <button
+                          type="button"
+                          className="text-primary hover:underline font-medium"
+                          onClick={() =>
+                            patch({
+                              translation: {
+                                ...options.translation,
+                                pronunciation_domains: PRONUNCIATION_DOMAIN_CHOICES.map((d) => d.id),
+                              },
+                            })
+                          }
+                        >
+                          Chọn tất cả
+                        </button>
+                        <span className="text-line">|</span>
+                        <button
+                          type="button"
+                          className="text-ink-soft hover:underline"
+                          onClick={() =>
+                            patch({
+                              translation: {
+                                ...options.translation,
+                                pronunciation_domains: ["it"],
+                              },
+                            })
+                          }
+                        >
+                          Mặc định (CNTT)
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <label className="label">Bảng thuật ngữ (mỗi dòng: nguồn = đích)</label>
-                    <textarea
-                      className="input h-32 font-mono text-sm"
-                      placeholder={"CPU = CPU\nSQL Server = SQL Server\nmachine learning = học máy"}
-                      value={options.translation.glossary}
-                      onChange={(e) =>
-                        patch({
-                          translation: { ...options.translation, glossary: e.target.value },
-                        })
-                      }
-                    />
-                    <p className="mt-1 text-xs text-ink-soft">
-                      Ép giữ đúng thuật ngữ khi dịch. Nếu server đã cấu hình GEMINI_API_KEY, bản
-                      dịch tự động dùng Gemini (giữ ngữ cảnh xuyên suốt video); nếu không sẽ dùng
-                      NLLB chạy local.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="label">
-                      Bảng phát âm cho giọng lồng tiếng (mỗi dòng: từ = cách đọc)
-                    </label>
-                    <textarea
-                      className="input h-24 font-mono text-sm"
-                      placeholder={"SQL = ét quy eo\nAPI = ây pi ai"}
-                      value={options.translation.pronunciation}
-                      onChange={(e) =>
-                        patch({
-                          translation: { ...options.translation, pronunciation: e.target.value },
-                        })
-                      }
-                    />
-                    <p className="mt-1 text-xs text-ink-soft">
-                      Chỉ đổi cách <strong>giọng đọc phát âm</strong> khi lồng tiếng — phụ đề vẫn
-                      hiển thị nguyên chữ gốc. Ghi đè lên bộ quy tắc mặc định của hệ thống (vd.
-                      SQL → "ét quy eo") nếu trùng từ.
+
+                    <div className="space-y-3 pt-1">
+                      {Array.from(
+                        new Set(PRONUNCIATION_DOMAIN_CHOICES.map((d) => d.category))
+                      ).map((category) => (
+                        <div key={category} className="rounded-lg border border-line/60 bg-cream/30 p-2.5">
+                          <p className="mb-2 text-xs font-semibold text-ink-soft uppercase tracking-wider">
+                            {category}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {PRONUNCIATION_DOMAIN_CHOICES.filter((d) => d.category === category).map(
+                              (dom) => {
+                                const selected = (
+                                  options.translation.pronunciation_domains || ["it"]
+                                ).includes(dom.id);
+                                return (
+                                  <button
+                                    key={dom.id}
+                                    type="button"
+                                    onClick={() => {
+                                      const current =
+                                        options.translation.pronunciation_domains || ["it"];
+                                      const next = selected
+                                        ? current.filter((id) => id !== dom.id)
+                                        : [...current, dom.id];
+                                      patch({
+                                        translation: {
+                                          ...options.translation,
+                                          pronunciation_domains: next.length > 0 ? next : ["it"],
+                                        },
+                                      });
+                                    }}
+                                    className={
+                                      "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition " +
+                                      (selected
+                                        ? "border-primary bg-primary text-white shadow-sm"
+                                        : "border-line bg-white text-ink hover:border-primary/50")
+                                    }
+                                  >
+                                    <span>{dom.icon}</span>
+                                    <span>{dom.label}</span>
+                                  </button>
+                                );
+                              }
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p className="mt-2 text-xs text-ink-soft">
+                      💡 <strong>Tự động 100%:</strong> Chọn các chủ đề có trong video để bộ từ điển tự động gán âm đọc tiếng Việt chuẩn xác nhất mà không cần nhập tay.
                     </p>
                   </div>
                 </div>
               )}
+
 
               {step === 3 && (
                 <div className="space-y-5">
@@ -1017,7 +1084,18 @@ export default function NewJob() {
                 <div className="space-y-4">
                   <h2 className="text-lg font-semibold">Xem lại cấu hình đã xác nhận</h2>
                   <div className="grid gap-3 sm:grid-cols-2">
+                    <ReviewCard title="HẠ TẦNG XỬ LÝ">
+                      <p className="font-medium flex items-center gap-1.5">
+                        {options.execution_mode === "GPU_LOCAL" ? "🖥️ GPU Máy chủ Local" : "⚡ Cloud API Free (0% VRAM)"}
+                      </p>
+                      <p className="text-xs text-ink-soft">
+                        {options.execution_mode === "GPU_LOCAL"
+                          ? "Faster-Whisper CUDA · Pyannote · VieNeu-TTS"
+                          : "Groq Whisper Large-v3 · Gemini LLM · Edge-TTS"}
+                      </p>
+                    </ReviewCard>
                     <ReviewCard title="NGUỒN">
+
                       <p className="break-all font-medium">
                         {sourceName}
                       </p>

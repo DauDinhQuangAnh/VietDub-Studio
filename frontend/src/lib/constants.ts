@@ -88,3 +88,25 @@ export const PIPELINE_STEPS = [
 ];
 
 export const TOTAL_STAGES = PIPELINE_STEPS.length;
+
+export const STT_MODEL_CHOICES: { label: string; value: string }[] = [
+  { label: "Large v3 Turbo (Khuyên dùng - Nhanh & Nhẹ ~3.5GB VRAM)", value: "large-v3-turbo" },
+  { label: "Medium (Cân bằng ~1.5GB VRAM)", value: "medium" },
+  { label: "Large v3 (Chính xác cao nhất ~10GB VRAM)", value: "large-v3" },
+  { label: "Small (Nhanh cho máy yếu ~1GB VRAM)", value: "small" },
+];
+
+export const PRONUNCIATION_DOMAIN_CHOICES: { id: string; label: string; icon: string; category: string }[] = [
+  { id: "it", label: "CNTT / Lập trình / AI", icon: "💻", category: "Công nghệ & Khoa học" },
+  { id: "hardware", label: "Công nghệ / Phần cứng / Ô tô", icon: "🚗", category: "Công nghệ & Khoa học" },
+  { id: "medical", label: "Y tế / Dược / Sức khỏe", icon: "🩺", category: "Công nghệ & Khoa học" },
+  { id: "finance", label: "Tài chính / Ngân hàng / Crypto", icon: "📈", category: "Kinh doanh & Đời sống" },
+  { id: "marketing", label: "Marketing / E-Commerce", icon: "🛍️", category: "Kinh doanh & Đời sống" },
+  { id: "realestate", label: "Bất động sản / Kiến trúc", icon: "🏢", category: "Kinh doanh & Đời sống" },
+  { id: "education", label: "Giáo dục / Học thuật / Du học", icon: "🎓", category: "Kinh doanh & Đời sống" },
+  { id: "gaming", label: "Gaming / Esports / Streamer", icon: "🎮", category: "Giải trí & Thể thao" },
+  { id: "sports", label: "Thể thao / Fitness / Gym", icon: "⚽", category: "Giải trí & Thể thao" },
+  { id: "cinema", label: "Điện ảnh / Phim ảnh / Music", icon: "🎬", category: "Giải trí & Thể thao" },
+  { id: "fashion", label: "Thời trang / Làm đẹp / Skincare", icon: "💄", category: "Văn hóa & Đời sống" },
+  { id: "culinary", label: "Ẩm thực / Nấu ăn / Nhà hàng", icon: "☕", category: "Văn hóa & Đời sống" },
+];

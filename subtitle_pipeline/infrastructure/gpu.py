@@ -18,3 +18,8 @@ def release_gpu_memory() -> None:
         return
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+        try:
+            torch.cuda.ipc_collect()
+        except Exception:
+            pass
+    gc.collect()

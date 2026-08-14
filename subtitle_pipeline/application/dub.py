@@ -22,6 +22,7 @@ trong `out_dir` (phu de + video da long tieng). Xem HANDOFF.md Phase 5b,
 quyet dinh don file 2026-07-03.
 """
 
+import hashlib
 import shutil
 import time
 from contextlib import ExitStack
@@ -87,6 +88,7 @@ class DubRenderOptions:
     # va co che nhieu-giong-theo-nguoi-noi o tren - clone hien chi ho tro 1
     # giong duy nhat/video, xem HANDOFF.md muc 6p).
     custom_voice_ref_audio: Path | None = None
+    speaker_voice_map: dict[str, str] = field(default_factory=dict)
 
 
 def _total_duration(work_dir: Path, source_video: Path) -> float:
@@ -109,18 +111,15 @@ def _clean_text_for_speech(text: str) -> str:
 
 
 def _build_speaker_voice_map(
-    segments: list[SubtitleSegment], language: str, voice: str | None
+    segments: list[SubtitleSegment],
+    language: str,
+    voice: str | None,
+    custom_map: dict[str, str] | None = None,
 ) -> dict[str | None, str]:
     """Gan 1 giong doc rieng cho tung nguoi noi (speaker) khac nhau trong
-    video - neu khong, ca video (du bao nhieu nguoi noi) se dung chung 1
-    giong (xem HANDOFF.md). Nguoi noi xuat hien DAU TIEN dung dung `voice`
-    (giong nguoi dung chon o Upload/Editor, hoac giong mac dinh cua ngon ngu
-    neu khong chon) - giu dung ky vong "chon giong X" cua nguoi dung. Cac
-    nguoi noi tiep theo lan luot nhan 1 giong KHAC trong VOICE_OPTIONS cua
-    ngon ngu do, xoay vong neu nhieu nguoi noi hon so giong co san. Neu
-    khong co diarization (moi segment `speaker=None`), ca video van dung 1
-    giong duy nhat - dung hanh vi cu.
+    video - uu tien dung `custom_map` neu nguoi dung da choi giong rieng.
     """
+    custom_map = custom_map or {}
     resolved_default = voice or default_voice(language)
     other_voices = [v for v in VOICE_OPTIONS[language].values() if v != resolved_default]
 
@@ -128,7 +127,9 @@ def _build_speaker_voice_map(
     for seg in segments:
         if seg.speaker in voice_by_speaker:
             continue
-        if not voice_by_speaker:
+        if seg.speaker and seg.speaker in custom_map:
+            voice_by_speaker[seg.speaker] = custom_map[seg.speaker]
+        elif not voice_by_speaker:
             voice_by_speaker[seg.speaker] = resolved_default
         elif other_voices:
             index = (len(voice_by_speaker) - 1) % len(other_voices)
@@ -186,8 +187,7 @@ def _fit_clips_to_timeline(
         fitted.append((seg.start, clip_path))
     if overflow_count:
         print(
-            f"[dub] Canh bao: {overflow_count} cau van dai hon khoang trong du da "
-            f"tang toc {MAX_TEMPO_FACTOR}x - phan tran se chong lan cau ke tiep."
+            f"[dub] {overflow_count} clip tran qua khung thoi gian (se duoc tron chong lan tu dong)"
         )
     return fitted
 
@@ -221,12 +221,14 @@ def dub_and_export(
     options = options or DubRenderOptions()
     segment_dir = work_dir / f"dub_{target_language}_segments"
     segment_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir = work_dir.parent / "tts_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
     use_cloned_voice = options.custom_voice_ref_audio is not None
     voice_by_speaker = (
         {}
         if use_cloned_voice
-        else _build_speaker_voice_map(segments, target_language, options.voice)
+        else _build_speaker_voice_map(segments, target_language, options.voice, options.speaker_voice_map)
     )
 
     raw_clips: list[tuple[int, SubtitleSegment, Path]] = []
@@ -246,6 +248,7 @@ def dub_and_export(
 
             if cloned_tts is not None:
                 tts = cloned_tts
+                seg_voice = "cloned_voice"
             else:
                 seg_voice = voice_by_speaker[seg.speaker]
                 if seg_voice not in synthesizers:
@@ -260,8 +263,20 @@ def dub_and_export(
                 tts = synthesizers[seg_voice]
 
             raw_clip = segment_dir / f"{i:05d}_raw.wav"
-            if not _synthesize_with_retry(tts, text, raw_clip):
-                continue
+            cache_key = hashlib.md5(
+                f"{text}|{seg_voice}|{options.rate_percent}|{options.pitch_hz}".encode("utf-8")
+            ).hexdigest()
+            cached_file = cache_dir / f"{cache_key}.wav"
+
+            if cached_file.exists() and cached_file.stat().st_size > 0:
+                shutil.copy(cached_file, raw_clip)
+            else:
+                if not _synthesize_with_retry(tts, text, raw_clip):
+                    continue
+                try:
+                    shutil.copy(raw_clip, cached_file)
+                except OSError:
+                    pass
 
             raw_clips.append((i, seg, raw_clip))
 

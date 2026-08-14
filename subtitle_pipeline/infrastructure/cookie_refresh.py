@@ -31,6 +31,9 @@ from pathlib import Path
 
 DEFAULT_SITES = {
     "youtube": "https://www.youtube.com/",
+    "tiktok": "https://www.tiktok.com/",
+    "bilibili": "https://www.bilibili.com/",
+    "douyin": "https://www.douyin.com/",
 }
 
 DEFAULT_PROFILE_DIR = Path("storage/browser_profile")

@@ -57,3 +57,10 @@ def test_apply_pronunciation_does_not_touch_partial_word():
     result = apply_pronunciation("PAINT khong phai la AI", glossary)
 
     assert result == "PAINT khong phai la trí tuệ nhân tạo"
+
+
+def test_resolve_merges_multiple_domains():
+    glossary = resolve_pronunciation_glossary("vi", "", selected_domains=["medical", "finance"])
+
+    assert glossary["covid"] == "cô vít"
+    assert glossary["fed"] == "phét"

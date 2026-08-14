@@ -13,6 +13,7 @@ class PipelineConfig:
     device: str = "cuda"
     language: str = "vi"
     hf_token: str | None = None
+    execution_mode: str = "CLOUD_FREE_API"  # "CLOUD_FREE_API" or "GPU_LOCAL"
 
     @classmethod
     def from_env(cls) -> "PipelineConfig":
@@ -22,4 +23,5 @@ class PipelineConfig:
             device=os.environ.get("PIPELINE_DEVICE", "cuda"),
             language=os.environ.get("PIPELINE_LANGUAGE", "vi"),
             hf_token=os.environ.get("HF_TOKEN"),
+            execution_mode=os.environ.get("EXECUTION_MODE", "CLOUD_FREE_API"),
         )

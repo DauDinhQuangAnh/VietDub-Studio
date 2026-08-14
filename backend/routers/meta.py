@@ -40,3 +40,10 @@ def voice_sample(body: VoiceSampleIn, user: AuthUser = Depends(get_current_user)
             status_code=502, detail=f"Không tạo được mẫu giọng (cần internet): {exc}"
         ) from exc
     return Response(content=audio, media_type="audio/mpeg")
+
+
+@router.get("/pronunciation-domains")
+def pronunciation_domains() -> list[dict]:
+    from subtitle_pipeline.application.pronunciation import list_available_domains
+
+    return list_available_domains()

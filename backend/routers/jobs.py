@@ -357,3 +357,49 @@ def download_file(
         raise HTTPException(status_code=404, detail="Không tìm thấy file")
     media_type = "video/mp4" if target.suffix in (".mp4", ".mkv") else None
     return FileResponse(target, media_type=media_type, filename=target.name)
+
+
+@router.post("/{job_id}/subtitles/preview-tts")
+def preview_subtitle_tts(
+    job_id: str,
+    text: str = Form(...),
+    language: str = Form("vi"),
+    voice: str | None = Form(None),
+    user: AuthUser = Depends(get_current_user),
+):
+    from fastapi import Response
+    from subtitle_pipeline.infrastructure.tts_edge import synthesize_sample
+
+    _get_owned_job(job_id, user)
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Văn bản preview không được để trống")
+
+    audio_bytes = synthesize_sample(
+        language=language,
+        voice=voice or "vi-VN-HoaiMyNeural",
+    )
+    return Response(content=audio_bytes, media_type="audio/mp3")
+
+
+@router.get("/{job_id}/events")
+async def job_events_sse(job_id: str):
+    import asyncio
+    import redis.asyncio as aioredis
+    from sse_starlette.sse import EventSourceResponse
+
+    async def event_generator():
+        cfg = AppConfig.from_env()
+        r = aioredis.from_url(cfg.redis_url)
+        pubsub = r.pubsub()
+        await pubsub.subscribe(f"job:{job_id}")
+        try:
+            while True:
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message and message.get("type") == "message":
+                    yield {"data": message["data"].decode("utf-8")}
+                await asyncio.sleep(0.5)
+        finally:
+            await pubsub.unsubscribe(f"job:{job_id}")
+            await r.aclose()
+
+    return EventSourceResponse(event_generator())

@@ -96,6 +96,7 @@ export interface AdminUserOut {
 // Schema options giu NGUYEN dict cua wizard cu (job_config.json) - worker
 // khong doi gi.
 export interface JobOptions {
+  execution_mode?: "CLOUD_FREE_API" | "GPU_LOCAL";
   source: {
     trim_seconds: number | null;
     source_language: string | null;
@@ -119,6 +120,7 @@ export interface JobOptions {
   translation: {
     glossary: string;
     pronunciation: string;
+    pronunciation_domains?: string[];
     max_chars_per_line: number;
     max_lines: number;
   };
@@ -148,6 +150,7 @@ export interface JobOptions {
 
 export function defaultOptions(): JobOptions {
   return {
+    execution_mode: "CLOUD_FREE_API",
     source: { trim_seconds: null, source_language: null },
     dubbing: {
       enabled: true,
@@ -157,7 +160,7 @@ export function defaultOptions(): JobOptions {
       pitch_hz: 0,
       custom_voice_id: null,
     },
-    translation: { glossary: "", pronunciation: "", max_chars_per_line: 42, max_lines: 2 },
+    translation: { glossary: "", pronunciation: "", pronunciation_domains: ["it"], max_chars_per_line: 42, max_lines: 2 },
     subtitle: {
       burn_in: false,
       style: {
