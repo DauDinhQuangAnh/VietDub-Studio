@@ -12,7 +12,7 @@ quyet dinh (it thay doi hon file nay) nam o `docs/memory/` - xem
   `feasibility/summarize_results.py` - khong sua tay bang do, chi sua bang
   cach chay lai script.
 
-## 0. Chay nhanh tren Windows
+## 0. Chay nhanh tren Windows x64
 
 Luồng dành cho người dùng không chuyên:
 
@@ -1468,12 +1468,20 @@ LLM - viec sau" o muc 6j):
 - `INFRA_MODE=auto` la mac dinh: Start Project thu Docker, neu khong dung
   duoc thi chuyen sang SQLite. `local` luon dung SQLite; `docker` bat buoc
   Docker; `custom` dung `DATABASE_URL`/`REDIS_URL` do nguoi dung dat.
+- Cong Postgres/Redis Docker chi bind vao `127.0.0.1` vi app ca nhan khong co
+  authentication.
 - `Start Project.bat` tao `.env` neu thieu, tao `.venv`, cai
   `requirements.txt`, tai Node.js/FFmpeg portable neu thieu, roi khoi dong
   API -> migration -> Celery -> web. `Stop Project.bat` khong xoa job/queue.
+- Launcher chi dung cac tien trinh co command line tro den thu muc du an,
+  tranh dung nham web app khac cung may.
 - API migration that bai gio lam API startup that bai; worker chi duoc khoi
   dong sau khi API health check thanh cong, tranh worker ghi vao schema chua
   duoc migrate.
+- Kiem chung local: `ruff check --fix .`, `ruff format .`, `pytest` (131 passed),
+  cu phap ba script PowerShell va YAML Docker Compose deu pass; `npm run build`
+  da pass truoc do. Docker Engine khong co trong moi truong nay, nen nhanh
+  Docker va bootstrap tren may Windows sach chua duoc chay end-to-end.
 
 ## 8. Van de dang mo / can quyet dinh
 

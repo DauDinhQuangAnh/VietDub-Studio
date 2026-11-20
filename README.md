@@ -52,7 +52,7 @@ VRAM giới hạn (dev trên GPU 6GB) nên pipeline load model **tuần tự** �
 
 ## 💻 Yêu cầu máy chạy
 
-Dự án chạy trên Windows 10/11 64-bit với Python 3.11 trở lên (khuyến nghị Python 3.12). GPU NVIDIA giúp xử lý nhanh hơn nhưng không bắt buộc. Không cần cài Node.js, FFmpeg, Docker, PostgreSQL hoặc Redis bằng tay: lần đầu bấm Start Project sẽ tự chuẩn bị các phần cần thiết. Cần có Internet trong lần cài đầu và lần tải model AI.
+Dự án chạy trên Windows 10/11 x64 với Python 3.11 trở lên (khuyến nghị Python 3.12). GPU NVIDIA giúp xử lý nhanh hơn nhưng không bắt buộc. Không cần cài Node.js, FFmpeg, Docker, PostgreSQL hoặc Redis bằng tay: lần đầu bấm Start Project sẽ tự chuẩn bị các phần cần thiết. Cần có Internet trong lần cài đầu và lần tải model AI.
 
 ## 🚀 Chạy ứng dụng
 

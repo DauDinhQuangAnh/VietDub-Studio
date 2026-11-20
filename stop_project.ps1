@@ -21,10 +21,18 @@ $patterns = @(
     "npm-cli.js run dev",
     "vite --host localhost --port 5173"
 )
+$rootPath = $Root.TrimEnd("\", "/")
+$rootPathWithForwardSlashes = $rootPath.Replace("\", "/")
 $targetIds = @{}
 $targets = $allProcesses | Where-Object {
     $commandLine = $_.CommandLine
     if (-not $commandLine) {
+        return $false
+    }
+    if (
+        $commandLine.IndexOf($rootPath, [StringComparison]::OrdinalIgnoreCase) -lt 0 -and
+        $commandLine.IndexOf($rootPathWithForwardSlashes, [StringComparison]::OrdinalIgnoreCase) -lt 0
+    ) {
         return $false
     }
     foreach ($pattern in $patterns) {

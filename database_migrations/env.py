@@ -4,10 +4,12 @@ sua 1 cho duy nhat."""
 
 import os
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine import make_url
 
 from worker.db.database import DEFAULT_DATABASE_URL
 from worker.db.database_models import Base
@@ -21,6 +23,13 @@ if config.config_file_name is not None:
 # ConfigParser hieu "%" la ky tu interpolation - escape de password/query
 # string chua "%" khong lam vo config.
 database_url = os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
+parsed_database_url = make_url(database_url)
+if (
+    parsed_database_url.get_backend_name() == "sqlite"
+    and parsed_database_url.database
+    and parsed_database_url.database != ":memory:"
+):
+    Path(parsed_database_url.database).parent.mkdir(parents=True, exist_ok=True)
 config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 target_metadata = Base.metadata

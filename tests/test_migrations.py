@@ -139,3 +139,13 @@ def test_api_startup_applies_migrations_to_sqlite(tmp_path, monkeypatch):
         assert version == "0002_remove_auth"
     finally:
         engine.dispose()
+
+
+def test_api_startup_creates_missing_sqlite_parent_directory(tmp_path, monkeypatch):
+    database_path = tmp_path / "new_storage" / "app.db"
+    database_url = _sqlite_url(tmp_path, "new_storage/app.db")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+
+    _run_database_migrations()
+
+    assert database_path.exists()

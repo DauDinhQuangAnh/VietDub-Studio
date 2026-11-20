@@ -107,13 +107,14 @@ function Ensure-NodeRuntime {
     $systemNpm = Get-Command "npm.cmd" -ErrorAction SilentlyContinue
     if ($systemNpm) {
         $systemNode = Get-Command "node.exe" -ErrorAction SilentlyContinue
-        if ($systemNode) {
+        if ($systemNode -and (Test-NodeCompatible $systemNode.Source)) {
             return [pscustomobject]@{ Node = $systemNode.Source; Npm = $systemNpm.Source }
         }
     }
 
     $toolsDir = Join-Path $Root ".tools\node"
     $localNpm = Get-ChildItem $toolsDir -Filter "npm.cmd" -File -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { Test-NodeCompatible (Join-Path $_.DirectoryName "node.exe") } |
         Select-Object -First 1
     if ($localNpm) {
         return [pscustomobject]@{
@@ -149,13 +150,31 @@ function Ensure-NodeRuntime {
     Expand-Archive -LiteralPath $archive -DestinationPath $toolsDir -Force
     Remove-Item $archive -Force
 
-    $localNpm = Get-ChildItem $toolsDir -Filter "npm.cmd" -File -Recurse | Select-Object -First 1
-    if (-not $localNpm -or -not (Test-Path (Join-Path $localNpm.DirectoryName "node.exe"))) {
+    $nodeDir = Join-Path $toolsDir "node-$($release.version)-win-$nodeArchitecture"
+    $nodePath = Join-Path $nodeDir "node.exe"
+    $npmPath = Join-Path $nodeDir "npm.cmd"
+    if (-not (Test-Path $npmPath) -or -not (Test-NodeCompatible $nodePath)) {
         throw "The downloaded Node.js archive did not contain node.exe and npm.cmd."
     }
     return [pscustomobject]@{
-        Node = Join-Path $localNpm.DirectoryName "node.exe"
-        Npm = $localNpm.FullName
+        Node = $nodePath
+        Npm = $npmPath
+    }
+}
+
+function Test-NodeCompatible($NodePath) {
+    if (-not (Test-Path $NodePath)) {
+        return $false
+    }
+    try {
+        $versionText = & $NodePath --version 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            return $false
+        }
+        $version = [Version]($versionText.Trim() -replace "^v", "")
+        return $version.Major -ge 20
+    } catch {
+        return $false
     }
 }
 
@@ -225,7 +244,7 @@ function Start-DockerDesktopIfNeeded {
 
     Write-Step "Starting Docker Desktop"
     Start-Process -FilePath $desktop -WindowStyle Hidden
-    for ($i = 0; $i -lt 30; $i++) {
+    for ($i = 0; $i -lt 60; $i++) {
         if ((Invoke-NativeQuiet { docker info }) -eq 0) {
             return $true
         }
@@ -245,7 +264,9 @@ function Wait-DockerService($Service, $Command) {
 }
 
 function Get-LocalDatabaseUrl {
-    $databasePath = (Join-Path $Root "storage\app.db").Replace("\", "/")
+    $storageDir = Join-Path $Root "storage"
+    $null = New-Item -ItemType Directory -Force $storageDir
+    $databasePath = (Join-Path $storageDir "app.db").Replace("\", "/")
     return "sqlite:///$databasePath"
 }
 
@@ -304,10 +325,18 @@ function Stop-DevProcesses {
         "npm-cli.js run dev",
         "vite --host localhost --port 5173"
     )
+    $rootPath = $Root.TrimEnd("\", "/")
+    $rootPathWithForwardSlashes = $rootPath.Replace("\", "/")
     $targetIds = @{}
     $targets = $allProcesses | Where-Object {
         $commandLine = $_.CommandLine
         if (-not $commandLine) {
+            return $false
+        }
+        if (
+            $commandLine.IndexOf($rootPath, [StringComparison]::OrdinalIgnoreCase) -lt 0 -and
+            $commandLine.IndexOf($rootPathWithForwardSlashes, [StringComparison]::OrdinalIgnoreCase) -lt 0
+        ) {
             return $false
         }
         foreach ($pattern in $patterns) {
