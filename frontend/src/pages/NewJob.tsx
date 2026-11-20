@@ -726,6 +726,7 @@ export default function NewJob() {
                           {p.label}
                         </button>
                       ))}
+                    </div>
                   </div>
 
                   <div>

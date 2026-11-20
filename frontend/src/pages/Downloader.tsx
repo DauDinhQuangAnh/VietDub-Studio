@@ -1,7 +1,7 @@
 import { useState } from "react";
 import NavBar from "../components/NavBar";
 import Spinner from "../components/Spinner";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 
 interface VideoQuality {
   id: string;
@@ -43,13 +43,13 @@ export default function Downloader() {
     setVideoInfo(null);
 
     try {
-      const res = await api.post<VideoInfo>("/downloader/info", { url: url.trim() });
-      setVideoInfo(res.data);
-      if (res.data.qualities && res.data.qualities.length > 0) {
-        setSelectedQuality(res.data.qualities[0].id);
+      const res = await api.post<VideoInfo>("/api/downloader/info", { url: url.trim() });
+      setVideoInfo(res);
+      if (res.qualities && res.qualities.length > 0) {
+        setSelectedQuality(res.qualities[0].id);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Không đọc được video từ liên kết này.");
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : "Không đọc được video từ liên kết này.");
     } finally {
       setLoadingInfo(false);
     }
@@ -61,18 +61,14 @@ export default function Downloader() {
     setError(null);
 
     try {
-      const response = await api.post(
-        "/downloader/download",
-        {
-          url: url.trim(),
-          quality: selectedQuality,
-          extract_audio_only: audioOnly,
-        },
-        { responseType: "blob" }
-      );
+      const response = await api.post<Blob>("/api/downloader/download", {
+        url: url.trim(),
+        quality: selectedQuality,
+        extract_audio_only: audioOnly,
+      });
 
       // Create browser download link
-      const blob = new Blob([response.data]);
+      const blob = response instanceof Blob ? response : new Blob([response as unknown as BlobPart]);
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
@@ -82,8 +78,8 @@ export default function Downloader() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-    } catch (err: any) {
-      setError("Có lỗi xảy ra khi tải video. Vui lòng thử lại.");
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : "Có lỗi xảy ra khi tải video. Vui lòng thử lại.");
     } finally {
       setDownloading(false);
     }

@@ -23,9 +23,22 @@ DEFAULT_DATABASE_URL = (
 )
 
 
+from pathlib import Path
+
 def make_session_factory(database_url: str | None = None) -> sessionmaker:
-    database_url = database_url or os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
-    connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-    engine = create_engine(database_url, connect_args=connect_args)
+    url = database_url or os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
+    try:
+        connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
+        engine = create_engine(url, connect_args=connect_args)
+        # Thử kết nối kiểm tra (đặc biệt khi dùng Postgres)
+        with engine.connect():
+            pass
+    except Exception as exc:
+        print(f"[db] Không thể kết nối tới {url} ({exc}). Tự động chuyển sang SQLite cục bộ.")
+        storage_dir = Path("storage")
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        url = f"sqlite:///{storage_dir.resolve() / 'app.db'}"
+        engine = create_engine(url, connect_args={"check_same_thread": False})
+
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine, expire_on_commit=False)

@@ -583,43 +583,4 @@ def test_create_job_rejects_custom_voice_owned_by_other_user(client, monkeypatch
     assert res.status_code == 404
 
 
-def test_send_email_rejects_job_not_done(client):
-    token = _register(client)["token"]
-    job = _create_upload_job(client, token)
 
-    res = client.post(f"/api/jobs/{job['id']}/send-email", headers=_auth_headers(token))
-
-    assert res.status_code == 400
-
-
-def test_send_email_uses_registered_email(client, monkeypatch):
-    token = _register(client, "a@test.com")["token"]
-    job = _create_upload_job(client, token)
-    backend_db.job_repo().update_status(job["id"], status=JobStatus.DONE)
-
-    sent: list[tuple] = []
-    monkeypatch.setattr(
-        "backend.routers.jobs.send_job_result_email",
-        lambda to_email, job_id, filename: sent.append((to_email, job_id, filename)),
-    )
-
-    res = client.post(f"/api/jobs/{job['id']}/send-email", headers=_auth_headers(token))
-
-    assert res.status_code == 200
-    assert res.json() == {"sent_to": "a@test.com"}
-    assert sent == [("a@test.com", job["id"], "video.mp4")]
-
-
-def test_send_email_reports_smtp_error_as_502(client, monkeypatch):
-    token = _register(client)["token"]
-    job = _create_upload_job(client, token)
-    backend_db.job_repo().update_status(job["id"], status=JobStatus.DONE)
-
-    def _boom(to_email, job_id, filename):
-        raise RuntimeError("SMTP loi")
-
-    monkeypatch.setattr("backend.routers.jobs.send_job_result_email", _boom)
-
-    res = client.post(f"/api/jobs/{job['id']}/send-email", headers=_auth_headers(token))
-
-    assert res.status_code == 502

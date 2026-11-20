@@ -15,7 +15,6 @@ from app.config import AppConfig
 from app.db.models import Job, JobStatus
 from app.jobs.tasks import dub_job, process_video_job, translate_job
 from backend.db import job_repo
-from backend.email_sender import EmailNotConfiguredError, send_job_result_email
 from backend.routers.voices import get_owned_voice
 from backend.schemas import (
     DubJobIn,
@@ -167,20 +166,6 @@ def delete_job(job_id: str, user: AuthUser = Depends(get_current_user)) -> dict:
     shutil.rmtree(Path(job.output_dir).parent, ignore_errors=True)
     job_repo().delete(job.id)
     return {"deleted": job_id}
-
-
-@router.post("/{job_id}/send-email")
-def send_job_email(job_id: str, user: AuthUser = Depends(get_current_user)) -> dict:
-    job = _get_owned_job(job_id, user)
-    if job.status != JobStatus.DONE:
-        raise HTTPException(status_code=400, detail="Job chưa xử lý xong")
-    try:
-        send_job_result_email(user.email, job.id, job.filename)
-    except EmailNotConfiguredError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Gửi email thất bại: {exc}") from exc
-    return {"sent_to": user.email}
 
 
 @router.post("/{job_id}/rerun", response_model=JobOut)

@@ -1,15 +1,12 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
-import { AuthProvider, RequireAdmin, RequireAuth } from "./auth/AuthContext";
+import { AuthProvider } from "./auth/AuthContext";
 import GlobalLoadingBar from "./components/GlobalLoadingBar";
 import Admin from "./pages/Admin";
 import Downloader from "./pages/Downloader";
 import Editor from "./pages/Editor";
 import JobDetail from "./pages/JobDetail";
-import Landing from "./pages/Landing";
-import Login from "./pages/Login";
 import NewJob from "./pages/NewJob";
-import Register from "./pages/Register";
 import Studio from "./pages/Studio";
 import Voices from "./pages/Voices";
 
@@ -19,65 +16,20 @@ export default function App() {
       <AuthProvider>
         <GlobalLoadingBar />
         <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route
-            path="/studio"
-            element={
-              <RequireAuth>
-                <Studio />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/studio/new"
-            element={
-              <RequireAuth>
-                <NewJob />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/studio/jobs/:id"
-            element={
-              <RequireAuth>
-                <JobDetail />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/studio/jobs/:id/edit"
-            element={
-              <RequireAuth>
-                <Editor />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/voices"
-            element={
-              <RequireAuth>
-                <Voices />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/downloader"
-            element={
-              <RequireAuth>
-                <Downloader />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <RequireAdmin>
-                <Admin />
-              </RequireAdmin>
-            }
-          />
+          {/* Vào thẳng Studio chính của tool cá nhân */}
+          <Route path="/" element={<Studio />} />
+          <Route path="/studio" element={<Studio />} />
+          <Route path="/studio/new" element={<NewJob />} />
+          <Route path="/studio/jobs/:id" element={<JobDetail />} />
+          <Route path="/studio/jobs/:id/edit" element={<Editor />} />
+          <Route path="/voices" element={<Voices />} />
+          <Route path="/downloader" element={<Downloader />} />
+          <Route path="/admin" element={<Admin />} />
+
+          {/* Bỏ trang đăng nhập/đăng ký - chuyển hướng về trang chủ */}
+          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/register" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

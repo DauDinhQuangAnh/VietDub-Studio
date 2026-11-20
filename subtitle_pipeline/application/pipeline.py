@@ -104,11 +104,14 @@ class TranscriptionPipeline:
             aligned = [SubtitleSegment(start=t.start, end=t.end, text=t.text) for t in transcript]
 
         notify("diarize")
+        speaker_turns = []
         if self.config.hf_token:
-            with self.diarizer_factory() as diarizer:
-                speaker_turns = self._stage("diarize", diarizer.diarize, denoised_audio)
-        else:
-            speaker_turns = []
+            try:
+                with self.diarizer_factory() as diarizer:
+                    speaker_turns = self._stage("diarize", diarizer.diarize, denoised_audio)
+            except Exception as exc:
+                print(f"[diarize] Bỏ qua phân tách người nói ({exc}) - dùng speaker mặc định")
+                speaker_turns = []
 
         notify("merge")
         return merge_speakers(aligned, speaker_turns), detected_language

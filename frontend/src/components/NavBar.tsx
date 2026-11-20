@@ -1,12 +1,9 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 
-import { useAuth } from "../auth/AuthContext";
 import ExecutionEngineToggle, { type ExecutionMode } from "./ExecutionEngineToggle";
 
 export default function NavBar() {
-  const { isLoggedIn, isAdmin, email, logout } = useAuth();
-  const navigate = useNavigate();
   const [executionMode, setExecutionMode] = useState<ExecutionMode>(() => {
     return (localStorage.getItem("vietdub_execution_mode") as ExecutionMode) || "CLOUD_FREE_API";
   });
@@ -29,44 +26,22 @@ export default function NavBar() {
           </Link>
           <ExecutionEngineToggle mode={executionMode} onChange={handleModeChange} compact={true} />
         </div>
-        <nav className="flex items-center gap-3">
-          {isLoggedIn ? (
-            <>
-              <Link to="/studio" className="btn-ghost">
-                Studio
-              </Link>
-              <Link to="/downloader" className="btn-ghost">
-                📥 Tải Video
-              </Link>
-              <Link to="/voices" className="btn-ghost">
-                Giọng của tôi
-              </Link>
-              {isAdmin && (
-                <Link to="/admin" className="btn-ghost">
-                  Quản trị
-                </Link>
-              )}
-              <span className="hidden text-sm text-ink-soft sm:block">{email}</span>
-              <button
-                className="btn-ghost"
-                onClick={() => {
-                  logout();
-                  navigate("/");
-                }}
-              >
-                Đăng xuất
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="btn-ghost">
-                Đăng nhập
-              </Link>
-              <Link to="/register" className="btn-primary">
-                Dùng thử miễn phí
-              </Link>
-            </>
-          )}
+        <nav className="flex items-center gap-2 sm:gap-3">
+          <Link to="/" className="btn-ghost text-sm font-medium">
+            Studio
+          </Link>
+          <Link to="/downloader" className="btn-ghost text-sm font-medium">
+            📥 Tải Video
+          </Link>
+          <Link to="/voices" className="btn-ghost text-sm font-medium">
+            Giọng của tôi
+          </Link>
+          <Link to="/admin" className="btn-ghost text-sm font-medium">
+            Quản trị & Cookies
+          </Link>
+          <Link to="/studio/new" className="btn-primary text-sm">
+            + Tạo video mới
+          </Link>
         </nav>
       </div>
     </header>

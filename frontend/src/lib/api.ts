@@ -42,12 +42,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(path, { ...init, headers });
-  if (res.status === 401) {
-    clearSession();
-    if (!window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login";
-    }
-  }
   if (!res.ok) {
     let detail = res.statusText;
     try {

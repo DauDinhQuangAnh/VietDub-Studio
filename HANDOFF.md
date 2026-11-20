@@ -69,9 +69,17 @@ buoi sang), DA BI DAO NGUOC cung ngay boi quyet dinh o muc 6k (UI React +
 FastAPI) - giu lai de hieu boi canh/ly do, xem trang thai THAT HIEN TAI ngay
 sau do.**
 
-- ~~Tool ca nhan, khong da nguoi dung/Auth/Billing~~ - **DA DAO NGUOC**: gio
-  co Auth (dang ky/dang nhap) + admin (tai khoan chung tu env), xem muc 6k.
-  Van KHONG gioi han usage/goi cuoc (nguoi dung xac nhan giu nguyen phan nay).
+- **Bỏ Telegram bot và Gửi mail (2026-11-20)**:
+  Đã xóa hoàn toàn module `app/telegram_bot/` và `backend/email_sender.py`, loại bỏ các cấu hình
+  `SMTP_*` và `TELEGRAM_*` trong `.env`. Hệ thống tập trung 100% vào web app Studio cá nhân trực tiếp.
+- **Tool cá nhân (Single-user Personal Tool, cập nhật 2026-11-20)**:
+  Bỏ hoàn toàn đăng nhập / đăng ký / landing page thương mại. Mở localhost (http://localhost:5173)
+  vào thẳng Studio làm việc. Phía Backend tự động cấp quyền Admin cho phiên Local khi không có
+  token, cho phép toàn quyền quản lý, tạo, sửa, xóa job mà không cần xác thực rườm rà.
+- **Tối ưu máy Dev không GPU (2026-11-20)**:
+  Tự động fallback `device="cpu"` khi không có CUDA khả dụng; chế độ `CLOUD_FREE_API` (Groq + Gemini + Edge-TTS)
+  cho phép chạy toàn bộ flow phiên âm, dịch và lồng tiếng mà không tốn GPU/VRAM; bổ sung fallback an toàn
+  cho `diarize` tránh văng exception làm fail job trên máy không có GPU.
 - ~~Frontend/Backend UI: Streamlit xuyen suot~~ - **DA DAO NGUOC + XOA HOAN
   TOAN Streamlit (2026-07-04)**: UI gio la `frontend/` (React + TypeScript +
   Tailwind, Vite) goi `backend/` (FastAPI REST API) qua HTTP. Celery worker

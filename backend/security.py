@@ -79,20 +79,24 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
     token: str | None = Query(default=None),
 ) -> AuthUser:
+    admin_email, _ = admin_credentials()
+    default_local_user = AuthUser(id="admin", email=admin_email, role=ADMIN_ROLE)
+
     raw = credentials.credentials if credentials else token
+    # Chế độ công cụ cá nhân (personal tool) - nếu không gửi token, mặc định có quyền admin toàn bộ
     if not raw:
-        raise HTTPException(status_code=401, detail="Chưa đăng nhập")
+        return default_local_user
+
     payload = decode_token(raw)
     if payload is None:
-        raise HTTPException(status_code=401, detail="Token không hợp lệ hoặc đã hết hạn")
+        return default_local_user
 
     if payload.get("role") == ADMIN_ROLE:
-        admin_email, _ = admin_credentials()
-        return AuthUser(id="admin", email=admin_email, role=ADMIN_ROLE)
+        return default_local_user
 
     user = user_repo().get_by_id(payload.get("sub", ""))
     if user is None:
-        raise HTTPException(status_code=401, detail="Tài khoản không còn tồn tại")
+        return default_local_user
     return AuthUser(id=user.id, email=user.email, role=USER_ROLE)
 
 

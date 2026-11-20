@@ -87,7 +87,6 @@ def create_download_job(
     quality: str = "best",
     user_id: str | None = None,
     options: dict[str, Any] | None = None,
-    telegram: dict[str, Any] | None = None,
     enqueue_task=process_video_job,
     job_repo_factory=job_repo,
 ) -> str:
@@ -119,8 +118,6 @@ def create_download_job(
     source = job_options.setdefault("source", {})
     source["input_mode"] = "download"
     source["download"] = {"url": url, "quality": quality, "title": title}
-    if telegram:
-        job_options["telegram"] = telegram
 
     write_job_config(job_dir, job_options)
     job_repo_factory().create(
