@@ -12,11 +12,10 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import tempfile
 import urllib.error
 import urllib.request
+from contextlib import suppress
 from pathlib import Path
-from typing import Any
 
 from subtitle_pipeline.domain.models import TranscriptSegment
 from subtitle_pipeline.infrastructure.transcriber_faster_whisper import FasterWhisperTranscriber
@@ -33,20 +32,20 @@ def _encode_multipart_formdata(
     body = bytearray()
 
     for key, value in fields.items():
-        body.extend(f"--{boundary}\r\n".encode("utf-8"))
-        body.extend(f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode("utf-8"))
-        body.extend(f"{value}\r\n".encode("utf-8"))
+        body.extend(f"--{boundary}\r\n".encode())
+        body.extend(f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode())
+        body.extend(f"{value}\r\n".encode())
 
     for key, (filename, content, content_type) in files.items():
-        body.extend(f"--{boundary}\r\n".encode("utf-8"))
+        body.extend(f"--{boundary}\r\n".encode())
         body.extend(
-            f'Content-Disposition: form-data; name="{key}"; filename="{filename}"\r\n'.encode("utf-8")
+            f'Content-Disposition: form-data; name="{key}"; filename="{filename}"\r\n'.encode()
         )
-        body.extend(f"Content-Type: {content_type}\r\n\r\n".encode("utf-8"))
+        body.extend(f"Content-Type: {content_type}\r\n\r\n".encode())
         body.extend(content)
         body.extend(b"\r\n")
 
-    body.extend(f"--{boundary}--\r\n".encode("utf-8"))
+    body.extend(f"--{boundary}--\r\n".encode())
     content_type_header = f"multipart/form-data; boundary={boundary}"
     return bytes(body), content_type_header
 
@@ -56,7 +55,10 @@ def _compress_audio_if_needed(audio_path: Path) -> tuple[Path, bool]:
 
     Trả về (path_file_can_dung, is_temp).
     """
-    if audio_path.stat().st_size <= MAX_GROQ_FILE_SIZE_BYTES and audio_path.suffix.lower() == ".mp3":
+    if (
+        audio_path.stat().st_size <= MAX_GROQ_FILE_SIZE_BYTES
+        and audio_path.suffix.lower() == ".mp3"
+    ):
         return audio_path, False
 
     try:
@@ -94,7 +96,7 @@ class CloudGroqTranscriber:
         self._api_key = api_key or os.environ.get("GROQ_API_KEY", "")
         self._language = language
 
-    def __enter__(self) -> "CloudGroqTranscriber":
+    def __enter__(self) -> CloudGroqTranscriber:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -125,7 +127,9 @@ class CloudGroqTranscriber:
             if self._language:
                 fields["language"] = self._language
 
-            content_type_file = "audio/mpeg" if file_to_send.suffix.lower() == ".mp3" else "audio/wav"
+            content_type_file = (
+                "audio/mpeg" if file_to_send.suffix.lower() == ".mp3" else "audio/wav"
+            )
             files = {
                 "file": (file_to_send.name, file_bytes, content_type_file),
             }
@@ -171,7 +175,5 @@ class CloudGroqTranscriber:
             return result, detected_language
         finally:
             if is_temp and file_to_send.exists():
-                try:
+                with suppress(OSError):
                     file_to_send.unlink()
-                except OSError:
-                    pass

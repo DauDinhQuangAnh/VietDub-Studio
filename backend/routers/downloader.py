@@ -1,17 +1,15 @@
-"""Router tải video/audio trực tiếp không qua pipeline dịch/lồng tiếng.
-"""
+"""Router tải video/audio trực tiếp không qua pipeline dịch/lồng tiếng."""
 
 import uuid
 from pathlib import Path
-from pydantic import BaseModel, HttpUrl
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
 
-from backend.security import AuthUser, get_current_user
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+
 from subtitle_pipeline.infrastructure.downloader_ytdlp import (
     analyze_video,
     download_video,
-    VideoMetadata,
     sanitize_filename,
 )
 
@@ -32,7 +30,7 @@ class VideoDownloadRequest(BaseModel):
 
 
 @router.post("/info")
-def get_video_info(body: VideoInfoRequest, user: AuthUser = Depends(get_current_user)) -> dict:
+def get_video_info(body: VideoInfoRequest) -> dict:
     try:
         meta = analyze_video(body.url)
         return {
@@ -51,7 +49,7 @@ def get_video_info(body: VideoInfoRequest, user: AuthUser = Depends(get_current_
 
 
 @router.post("/download")
-def download_direct(body: VideoDownloadRequest, user: AuthUser = Depends(get_current_user)):
+def download_direct(body: VideoDownloadRequest):
     try:
         meta = analyze_video(body.url)
         clean_title = sanitize_filename(meta.title)

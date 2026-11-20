@@ -9,12 +9,11 @@ import subprocess
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.config import AppConfig
 from backend.db import custom_voice_repo
 from backend.schemas import CustomVoiceOut
-from backend.security import AuthUser, get_current_user
 from subtitle_pipeline.infrastructure.tts_vieneu import (
     MIN_REFERENCE_SECONDS,
     probe_reference_seconds,
@@ -25,13 +24,13 @@ router = APIRouter(prefix="/voices", tags=["voices"])
 MAX_FILE_SIZE_MB = 20
 
 
-def _voices_dir(user_id: str) -> Path:
-    return AppConfig.from_env().storage_dir / "custom_voices" / user_id
+def _voices_dir() -> Path:
+    return AppConfig.from_env().storage_dir / "custom_voices"
 
 
-def get_owned_voice(voice_id: str, user: AuthUser):
+def get_voice(voice_id: str):
     voice = custom_voice_repo().get(voice_id)
-    if voice is None or voice.user_id != user.id:
+    if voice is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy giọng đã clone")
     return voice
 
@@ -40,7 +39,6 @@ def get_owned_voice(voice_id: str, user: AuthUser):
 def create_voice(
     name: str = Form(...),
     file: UploadFile = File(...),
-    user: AuthUser = Depends(get_current_user),
 ) -> CustomVoiceOut:
     if not name.strip():
         raise HTTPException(status_code=400, detail="Cần đặt tên cho giọng")
@@ -49,7 +47,7 @@ def create_voice(
         raise HTTPException(status_code=400, detail=f"File quá {MAX_FILE_SIZE_MB}MB")
 
     voice_id = str(uuid.uuid4())
-    voice_dir = _voices_dir(user.id)
+    voice_dir = _voices_dir()
     voice_dir.mkdir(parents=True, exist_ok=True)
     upload_suffix = Path(file.filename or "audio.webm").suffix or ".webm"
     raw_path = voice_dir / f"{voice_id}_raw{upload_suffix}"
@@ -81,20 +79,18 @@ def create_voice(
             ),
         )
 
-    voice = custom_voice_repo().create(
-        user_id=user.id, name=name.strip(), ref_audio_path=str(ref_path)
-    )
+    voice = custom_voice_repo().create(name=name.strip(), ref_audio_path=str(ref_path))
     return CustomVoiceOut.from_voice(voice)
 
 
 @router.get("", response_model=list[CustomVoiceOut])
-def list_voices(user: AuthUser = Depends(get_current_user)) -> list[CustomVoiceOut]:
-    return [CustomVoiceOut.from_voice(v) for v in custom_voice_repo().list_by_user(user.id)]
+def list_voices() -> list[CustomVoiceOut]:
+    return [CustomVoiceOut.from_voice(v) for v in custom_voice_repo().list_all()]
 
 
 @router.delete("/{voice_id}")
-def delete_voice(voice_id: str, user: AuthUser = Depends(get_current_user)) -> dict:
-    voice = get_owned_voice(voice_id, user)
+def delete_voice(voice_id: str) -> dict:
+    voice = get_voice(voice_id)
     Path(voice.ref_audio_path).unlink(missing_ok=True)
     custom_voice_repo().delete(voice_id)
     return {"deleted": voice_id}

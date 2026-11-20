@@ -35,7 +35,7 @@ def test_upgrade_creates_all_tables_on_fresh_db(tmp_path, monkeypatch):
 
     _upgrade_head(db_url, monkeypatch)
 
-    assert {"users", "jobs", "custom_voices", "alembic_version"} <= _table_names(db_url)
+    assert {"jobs", "custom_voices", "alembic_version"} <= _table_names(db_url)
 
 
 def test_upgrade_twice_is_idempotent(tmp_path, monkeypatch):
@@ -56,6 +56,50 @@ def test_upgrade_adopts_db_created_by_create_all(tmp_path, monkeypatch):
     _upgrade_head(db_url, monkeypatch)
 
     assert "alembic_version" in _table_names(db_url)
+
+
+def test_upgrade_removes_legacy_auth_columns(tmp_path, monkeypatch):
+    db_url = _sqlite_url(tmp_path, "legacy-auth.db")
+    engine = sa.create_engine(db_url)
+    sa.MetaData()
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "CREATE TABLE users "
+                "(id VARCHAR(36) PRIMARY KEY, email VARCHAR(255), "
+                "password_hash VARCHAR(255), created_at DATETIME)"
+            )
+        )
+        connection.execute(
+            sa.text(
+                "CREATE TABLE jobs "
+                "(id VARCHAR(36) PRIMARY KEY, user_id VARCHAR(36), filename VARCHAR(255), "
+                "input_path VARCHAR(1024), output_dir VARCHAR(1024), "
+                "status VARCHAR(20), stage VARCHAR(64), error_message TEXT, "
+                "created_at DATETIME, updated_at DATETIME)"
+            )
+        )
+        connection.execute(
+            sa.text(
+                "CREATE TABLE custom_voices "
+                "(id VARCHAR(36) PRIMARY KEY, user_id VARCHAR(36), name VARCHAR(255), "
+                "ref_audio_path VARCHAR(1024), created_at DATETIME)"
+            )
+        )
+    engine.dispose()
+
+    _upgrade_head(db_url, monkeypatch)
+
+    engine = sa.create_engine(db_url)
+    try:
+        inspector = sa.inspect(engine)
+        assert "users" not in inspector.get_table_names()
+        assert "user_id" not in {column["name"] for column in inspector.get_columns("jobs")}
+        assert "user_id" not in {
+            column["name"] for column in inspector.get_columns("custom_voices")
+        }
+    finally:
+        engine.dispose()
 
 
 def test_migration_schema_matches_orm_models(tmp_path, monkeypatch):

@@ -20,8 +20,8 @@ def test_groq_transcriber_success(mock_urlopen, tmp_path: Path):
 
     mock_response = MagicMock()
     mock_response.read.return_value = (
-        b'{"language": "vi", "segments": [{"start": 0.0, "end": 2.5, "text": "Xin chào thế giới"}]}'
-    )
+        '{"language": "vi", "segments": [{"start": 0.0, "end": 2.5, "text": "Xin chào thế giới"}]}'
+    ).encode()
     mock_response.__enter__.return_value = mock_response
     mock_urlopen.return_value = mock_response
 
@@ -36,12 +36,15 @@ def test_groq_transcriber_success(mock_urlopen, tmp_path: Path):
     assert segments[0].end == 2.5
 
 
-@patch("subtitle_pipeline.infrastructure.transcriber_faster_whisper.FasterWhisperTranscriber.transcribe")
-def test_groq_transcriber_fallback_when_no_key(mock_fallback_transcribe, tmp_path: Path):
+@patch("subtitle_pipeline.infrastructure.transcriber_groq.FasterWhisperTranscriber")
+def test_groq_transcriber_fallback_when_no_key(mock_fallback_class, tmp_path: Path):
     audio_file = tmp_path / "test.wav"
     audio_file.write_bytes(b"dummy wav content")
 
-    mock_fallback_transcribe.return_value = ([TranscriptSegment(start=0.0, end=1.0, text="Fallback text")], "en")
+    mock_fallback_class.return_value.__enter__.return_value.transcribe.return_value = (
+        [TranscriptSegment(start=0.0, end=1.0, text="Fallback text")],
+        "en",
+    )
 
     transcriber = CloudGroqTranscriber(api_key="")
     with transcriber as tr:

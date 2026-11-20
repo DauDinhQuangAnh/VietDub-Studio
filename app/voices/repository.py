@@ -1,5 +1,4 @@
-"""Repository cho CustomVoice - cung mau voi JobRepository/UserRepository
-(nhan session_factory qua constructor de test bang SQLite in-memory)."""
+"""Repository cho CustomVoice (nhan session_factory de test bang SQLite)."""
 
 import uuid
 from collections.abc import Callable, Sequence
@@ -15,11 +14,9 @@ class CustomVoiceRepository:
     def __init__(self, session_factory: Callable[[], Session] | None = None):
         self._session_factory = session_factory or make_session_factory()
 
-    def create(self, user_id: str, name: str, ref_audio_path: str) -> CustomVoice:
+    def create(self, name: str, ref_audio_path: str) -> CustomVoice:
         with self._session_factory() as session:
-            voice = CustomVoice(
-                id=str(uuid.uuid4()), user_id=user_id, name=name, ref_audio_path=ref_audio_path
-            )
+            voice = CustomVoice(id=str(uuid.uuid4()), name=name, ref_audio_path=ref_audio_path)
             session.add(voice)
             session.commit()
             session.refresh(voice)
@@ -29,13 +26,9 @@ class CustomVoiceRepository:
         with self._session_factory() as session:
             return session.get(CustomVoice, voice_id)
 
-    def list_by_user(self, user_id: str) -> Sequence[CustomVoice]:
+    def list_all(self) -> Sequence[CustomVoice]:
         with self._session_factory() as session:
-            stmt = (
-                select(CustomVoice)
-                .where(CustomVoice.user_id == user_id)
-                .order_by(CustomVoice.created_at.desc())
-            )
+            stmt = select(CustomVoice).order_by(CustomVoice.created_at.desc())
             return session.scalars(stmt).all()
 
     def delete(self, voice_id: str) -> None:

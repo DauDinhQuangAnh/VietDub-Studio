@@ -25,7 +25,7 @@ quyet dinh don file 2026-07-03.
 import hashlib
 import shutil
 import time
-from contextlib import ExitStack
+from contextlib import ExitStack, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -228,7 +228,9 @@ def dub_and_export(
     voice_by_speaker = (
         {}
         if use_cloned_voice
-        else _build_speaker_voice_map(segments, target_language, options.voice, options.speaker_voice_map)
+        else _build_speaker_voice_map(
+            segments, target_language, options.voice, options.speaker_voice_map
+        )
     )
 
     raw_clips: list[tuple[int, SubtitleSegment, Path]] = []
@@ -264,7 +266,7 @@ def dub_and_export(
 
             raw_clip = segment_dir / f"{i:05d}_raw.wav"
             cache_key = hashlib.md5(
-                f"{text}|{seg_voice}|{options.rate_percent}|{options.pitch_hz}".encode("utf-8")
+                f"{text}|{seg_voice}|{options.rate_percent}|{options.pitch_hz}".encode()
             ).hexdigest()
             cached_file = cache_dir / f"{cache_key}.wav"
 
@@ -273,10 +275,8 @@ def dub_and_export(
             else:
                 if not _synthesize_with_retry(tts, text, raw_clip):
                     continue
-                try:
+                with suppress(OSError):
                     shutil.copy(raw_clip, cached_file)
-                except OSError:
-                    pass
 
             raw_clips.append((i, seg, raw_clip))
 

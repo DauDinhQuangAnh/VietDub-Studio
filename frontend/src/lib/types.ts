@@ -1,20 +1,7 @@
 // Phai khop backend/schemas.py.
 
-export interface UserOut {
-  id: string;
-  email: string;
-  created_at?: string | null;
-}
-
-export interface TokenOut {
-  token: string;
-  role: "user" | "admin";
-  user: UserOut;
-}
-
 export interface JobOut {
   id: string;
-  user_id: string | null;
   filename: string;
   status: "queued" | "running" | "done" | "failed";
   stage: string | null;
@@ -84,13 +71,6 @@ export interface CustomVoiceOut {
   id: string;
   name: string;
   created_at: string;
-}
-
-export interface AdminUserOut {
-  id: string;
-  email: string;
-  created_at: string;
-  job_count: number;
 }
 
 // Schema options giu NGUYEN dict cua wizard cu (job_config.json) - worker

@@ -8,14 +8,13 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from app.config import AppConfig
 from app.db.models import Job, JobStatus
 from app.jobs.tasks import dub_job, process_video_job, translate_job
 from backend.db import job_repo
-from backend.routers.voices import get_owned_voice
 from backend.schemas import (
     DubJobIn,
     FileOut,
@@ -29,7 +28,6 @@ from backend.schemas import (
     VideoMetadataOut,
     VideoOut,
 )
-from backend.security import AuthUser, get_current_user
 from subtitle_pipeline.domain.models import SubtitleSegment
 from subtitle_pipeline.export.formats import FORMAT_WRITERS
 from subtitle_pipeline.infrastructure.downloader_ytdlp import analyze_video, sanitize_filename
@@ -49,19 +47,14 @@ def _write_job_config(job_dir: Path, options: dict) -> None:
     )
 
 
-def _get_owned_job(job_id: str, user: AuthUser) -> Job:
+def _get_job(job_id: str) -> Job:
     job = job_repo().get(job_id)
     if job is None:
-        raise HTTPException(status_code=404, detail="Không tìm thấy job")
-    if not user.is_admin and job.user_id != user.id:
-        # Tra 404 (khong phai 403) de khong lo thong tin job ton tai.
         raise HTTPException(status_code=404, detail="Không tìm thấy job")
     return job
 
 
-def _create_job_from_options(
-    options: dict, user: AuthUser, upload: UploadFile | None = None
-) -> Job:
+def _create_job_from_options(options: dict, upload: UploadFile | None = None) -> Job:
     job_id = str(uuid.uuid4())
     job_dir = AppConfig.from_env().storage_dir / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
@@ -75,7 +68,7 @@ def _create_job_from_options(
         data = upload.file.read()
         if len(data) > MAX_FILE_SIZE_MB * 1024 * 1024:
             raise HTTPException(status_code=400, detail=f"File quá {MAX_FILE_SIZE_MB}MB")
-        filename = upload.filename
+        filename = sanitize_filename(Path(upload.filename).name)
         input_path = job_dir / filename
         input_path.write_bytes(data)
         source["input_mode"] = "upload"
@@ -97,26 +90,19 @@ def _create_job_from_options(
     else:
         raise HTTPException(status_code=400, detail="Cần file upload hoặc link video")
 
-    custom_voice_id = (options.get("dubbing") or {}).get("custom_voice_id")
-    if custom_voice_id:
-        get_owned_voice(custom_voice_id, user)
-
     _write_job_config(job_dir, options)
     job = job_repo().create(
         filename=filename,
         input_path=input_path,
         output_dir=job_dir / "output",
         job_id=job_id,
-        user_id=None if user.is_admin else user.id,
     )
     process_video_job.delay(job.id, options)
     return job
 
 
 @router.post("/source/analyze", response_model=VideoMetadataOut)
-def analyze_source(
-    body: VideoAnalyzeIn, user: AuthUser = Depends(get_current_user)
-) -> VideoMetadataOut:
+def analyze_source(body: VideoAnalyzeIn) -> VideoMetadataOut:
     try:
         metadata = analyze_video(body.url)
     except RuntimeError as exc:
@@ -139,38 +125,35 @@ def analyze_source(
 def create_job(
     options: str = Form(...),
     file: UploadFile | None = File(default=None),
-    user: AuthUser = Depends(get_current_user),
 ) -> JobOut:
     try:
         parsed = json.loads(options)
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=400, detail=f"options không phải JSON: {exc}") from exc
-    return JobOut.from_job(_create_job_from_options(parsed, user, file))
+    return JobOut.from_job(_create_job_from_options(parsed, file))
 
 
 @router.get("", response_model=list[JobOut])
-def list_jobs(user: AuthUser = Depends(get_current_user)) -> list[JobOut]:
-    repo = job_repo()
-    jobs = repo.list_all() if user.is_admin else repo.list_by_user(user.id)
-    return [JobOut.from_job(j) for j in jobs]
+def list_jobs() -> list[JobOut]:
+    return [JobOut.from_job(j) for j in job_repo().list_all()]
 
 
 @router.get("/{job_id}", response_model=JobOut)
-def get_job(job_id: str, user: AuthUser = Depends(get_current_user)) -> JobOut:
-    return JobOut.from_job(_get_owned_job(job_id, user))
+def get_job(job_id: str) -> JobOut:
+    return JobOut.from_job(_get_job(job_id))
 
 
 @router.delete("/{job_id}")
-def delete_job(job_id: str, user: AuthUser = Depends(get_current_user)) -> dict:
-    job = _get_owned_job(job_id, user)
+def delete_job(job_id: str) -> dict:
+    job = _get_job(job_id)
     shutil.rmtree(Path(job.output_dir).parent, ignore_errors=True)
     job_repo().delete(job.id)
     return {"deleted": job_id}
 
 
 @router.post("/{job_id}/rerun", response_model=JobOut)
-def rerun_job(job_id: str, user: AuthUser = Depends(get_current_user)) -> JobOut:
-    job = _get_owned_job(job_id, user)
+def rerun_job(job_id: str) -> JobOut:
+    job = _get_job(job_id)
     config_path = Path(job.output_dir).parent / "job_config.json"
     if not config_path.exists():
         raise HTTPException(status_code=400, detail="Job này không có job_config.json để tạo lại")
@@ -198,7 +181,6 @@ def rerun_job(job_id: str, user: AuthUser = Depends(get_current_user)) -> JobOut
         input_path=input_path,
         output_dir=new_dir / "output",
         job_id=new_id,
-        user_id=job.user_id,
     )
     process_video_job.delay(new_job.id, options)
     return JobOut.from_job(new_job)
@@ -210,10 +192,8 @@ def _subtitle_json_path(job: Job, language: str) -> Path:
 
 
 @router.get("/{job_id}/subtitles/{language}", response_model=list[SubtitleSegmentOut])
-def get_subtitles(
-    job_id: str, language: str, user: AuthUser = Depends(get_current_user)
-) -> list[SubtitleSegmentOut]:
-    job = _get_owned_job(job_id, user)
+def get_subtitles(job_id: str, language: str) -> list[SubtitleSegmentOut]:
+    job = _get_job(job_id)
     path = _subtitle_json_path(job, language)
     if not path.exists():
         raise HTTPException(status_code=404, detail="Không tìm thấy phụ đề cho ngôn ngữ này")
@@ -221,10 +201,8 @@ def get_subtitles(
 
 
 @router.put("/{job_id}/subtitles/{language}")
-def update_subtitles(
-    job_id: str, language: str, body: UpdateSubtitlesIn, user: AuthUser = Depends(get_current_user)
-) -> dict:
-    job = _get_owned_job(job_id, user)
+def update_subtitles(job_id: str, language: str, body: UpdateSubtitlesIn) -> dict:
+    job = _get_job(job_id)
     path = _subtitle_json_path(job, language)
     if not path.exists():
         raise HTTPException(status_code=404, detail="Không tìm thấy phụ đề cho ngôn ngữ này")
@@ -241,10 +219,8 @@ def update_subtitles(
 
 
 @router.post("/{job_id}/translate")
-def translate_job_endpoint(
-    job_id: str, body: TranslateJobIn, user: AuthUser = Depends(get_current_user)
-) -> dict:
-    job = _get_owned_job(job_id, user)
+def translate_job_endpoint(job_id: str, body: TranslateJobIn) -> dict:
+    job = _get_job(job_id)
     if job.status != JobStatus.DONE:
         raise HTTPException(status_code=400, detail="Job chưa xử lý xong")
     translate_job.delay(job.id, body.target_language)
@@ -252,14 +228,10 @@ def translate_job_endpoint(
 
 
 @router.post("/{job_id}/dub")
-def dub_job_endpoint(
-    job_id: str, body: DubJobIn, user: AuthUser = Depends(get_current_user)
-) -> dict:
-    job = _get_owned_job(job_id, user)
+def dub_job_endpoint(job_id: str, body: DubJobIn) -> dict:
+    job = _get_job(job_id)
     if job.status != JobStatus.DONE:
         raise HTTPException(status_code=400, detail="Job chưa xử lý xong")
-    if body.custom_voice_id:
-        get_owned_voice(body.custom_voice_id, user)
     dub_job.delay(
         job.id, body.target_language, body.voice, body.keep_original_audio, body.custom_voice_id
     )
@@ -267,8 +239,8 @@ def dub_job_endpoint(
 
 
 @router.get("/{job_id}/original")
-def download_original(job_id: str, user: AuthUser = Depends(get_current_user)) -> FileResponse:
-    job = _get_owned_job(job_id, user)
+def download_original(job_id: str) -> FileResponse:
+    job = _get_job(job_id)
     input_path = Path(job.input_path)
     if not input_path.exists():
         raise HTTPException(status_code=404, detail="Không tìm thấy file gốc")
@@ -325,15 +297,13 @@ def _group_output_files(job: Job) -> JobFilesOut:
 
 
 @router.get("/{job_id}/files", response_model=JobFilesOut)
-def list_files(job_id: str, user: AuthUser = Depends(get_current_user)) -> JobFilesOut:
-    return _group_output_files(_get_owned_job(job_id, user))
+def list_files(job_id: str) -> JobFilesOut:
+    return _group_output_files(_get_job(job_id))
 
 
 @router.get("/{job_id}/files/{name}")
-def download_file(
-    job_id: str, name: str, user: AuthUser = Depends(get_current_user)
-) -> FileResponse:
-    job = _get_owned_job(job_id, user)
+def download_file(job_id: str, name: str) -> FileResponse:
+    job = _get_job(job_id)
     output_dir = Path(job.output_dir)
     # Chong path traversal: chi chap nhan ten file nam TRUC TIEP trong
     # output_dir (so khop voi danh sach that, khong ghep duong dan tu input).
@@ -350,12 +320,11 @@ def preview_subtitle_tts(
     text: str = Form(...),
     language: str = Form("vi"),
     voice: str | None = Form(None),
-    user: AuthUser = Depends(get_current_user),
 ):
     from fastapi import Response
+
     from subtitle_pipeline.infrastructure.tts_edge import synthesize_sample
 
-    _get_owned_job(job_id, user)
     if not text.strip():
         raise HTTPException(status_code=400, detail="Văn bản preview không được để trống")
 
@@ -369,6 +338,7 @@ def preview_subtitle_tts(
 @router.get("/{job_id}/events")
 async def job_events_sse(job_id: str):
     import asyncio
+
     import redis.asyncio as aioredis
     from sse_starlette.sse import EventSourceResponse
 

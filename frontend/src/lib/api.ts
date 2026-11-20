@@ -1,33 +1,3 @@
-// Fetch wrapper: gan JWT tu localStorage, tu logout + ve /login khi 401.
-
-const TOKEN_KEY = "vietdub_token";
-const ROLE_KEY = "vietdub_role";
-const EMAIL_KEY = "vietdub_email";
-
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function getRole(): string | null {
-  return localStorage.getItem(ROLE_KEY);
-}
-
-export function getEmail(): string | null {
-  return localStorage.getItem(EMAIL_KEY);
-}
-
-export function saveSession(token: string, role: string, email: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(ROLE_KEY, role);
-  localStorage.setItem(EMAIL_KEY, email);
-}
-
-export function clearSession(): void {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(ROLE_KEY);
-  localStorage.removeItem(EMAIL_KEY);
-}
-
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -38,9 +8,6 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-
   const res = await fetch(path, { ...init, headers });
   if (!res.ok) {
     let detail = res.statusText;
@@ -76,14 +43,13 @@ export const api = {
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 
-/** URL file co token query - cho <video src> / <a download> (khong gui duoc
- *  header Authorization). */
+/** URL file ket qua local. */
 export function fileUrl(jobId: string, name: string): string {
-  return `/api/jobs/${jobId}/files/${encodeURIComponent(name)}?token=${getToken() ?? ""}`;
+  return `/api/jobs/${jobId}/files/${encodeURIComponent(name)}`;
 }
 
 /** URL video/audio GOC (chua qua dich/long tieng) - dung o trang Editor de
  *  xem lai khi sua phu de. */
 export function originalUrl(jobId: string): string {
-  return `/api/jobs/${jobId}/original?token=${getToken() ?? ""}`;
+  return `/api/jobs/${jobId}/original`;
 }

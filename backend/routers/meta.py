@@ -2,10 +2,9 @@
 nghe thu giong (goi edge-tts dong bo, can internet).
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response
 
 from backend.schemas import VoiceSampleIn
-from backend.security import AuthUser, get_current_user
 from subtitle_pipeline.infrastructure.translator_nllb import (
     NLLB_LANGUAGE_CODES,
     SUPPORTED_LANGUAGES,
@@ -32,7 +31,7 @@ def voices(language: str) -> list[dict]:
 
 
 @router.post("/voice-sample")
-def voice_sample(body: VoiceSampleIn, user: AuthUser = Depends(get_current_user)) -> Response:
+def voice_sample(body: VoiceSampleIn) -> Response:
     try:
         audio = synthesize_sample(body.language, body.voice, body.rate_percent, body.pitch_hz)
     except Exception as exc:

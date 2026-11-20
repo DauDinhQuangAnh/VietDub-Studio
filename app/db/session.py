@@ -7,6 +7,7 @@ khong dung DEFAULT_DATABASE_URL/Postgres that).
 """
 
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -22,8 +23,6 @@ DEFAULT_DATABASE_URL = (
     "postgresql+psycopg2://subtitle_studio:subtitle_studio@localhost:15432/subtitle_studio"
 )
 
-
-from pathlib import Path
 
 def make_session_factory(database_url: str | None = None) -> sessionmaker:
     url = database_url or os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)

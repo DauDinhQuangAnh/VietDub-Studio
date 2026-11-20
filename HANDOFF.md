@@ -1576,6 +1576,13 @@ LLM - viec sau" o muc 6j):
 
 ## 9. Nhat ky cap nhat
 
+- 2026-11-20: Bo hoan toan auth dang ky/dang nhap/JWT/admin account khoi du
+  an theo muc dich dung local ca nhan. Backend khong con `/api/auth`,
+  `User`/`Job.user_id`/`CustomVoice.user_id`; frontend khong con auth context,
+  login/register va xem user. Toan bo job/giong clone la tai san local chung.
+  Them migration `0002_remove_auth` de xoa bang/users va cot ownership tren DB
+  cu; them test xac nhan route auth khong ton tai va app van chay khong token.
+
 - 2026-07-01: Tao HANDOFF.md, viet xong code Phase 1 (chua chay thu, cho chay tren
   may dev that co GPU).
 - 2026-07-01: Push repo len GitHub (github.com/DauDinhQuangAnh/testai, nhanh main).

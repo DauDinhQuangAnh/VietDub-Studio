@@ -14,10 +14,7 @@ class ShareLinkError(ValueError):
 
 
 def _secret() -> bytes:
-    return os.environ.get(
-        "PUBLIC_LINK_SECRET",
-        os.environ.get("SESSION_SECRET_KEY", "dev-secret-doi-khi-deploy"),
-    ).encode("utf-8")
+    return os.environ.get("PUBLIC_LINK_SECRET", "dev-public-link-secret").encode("utf-8")
 
 
 def _b64_encode(data: bytes) -> str:

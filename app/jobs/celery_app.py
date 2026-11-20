@@ -26,7 +26,10 @@ def _resolve_broker_url() -> tuple[str, str]:
             with socket.create_connection(("localhost", 6379), timeout=0.3):
                 return configured, configured
         except Exception:
-            print("[celery] Không tìm thấy Redis trên localhost:6379. Tự động dùng SQLite broker cục bộ.")
+            print(
+                "[celery] Không tìm thấy Redis trên localhost:6379. "
+                "Tự động dùng SQLite broker cục bộ."
+            )
             storage_dir = Path("storage").resolve()
             storage_dir.mkdir(parents=True, exist_ok=True)
             db_path = storage_dir / "celery.db"

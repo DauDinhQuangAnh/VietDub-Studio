@@ -8,7 +8,6 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db.session import make_session_factory
 from app.jobs.repository import JobRepository
-from app.users.repository import UserRepository
 from app.voices.repository import CustomVoiceRepository
 
 _factory: sessionmaker | None = None
@@ -28,10 +27,6 @@ def set_session_factory(factory: sessionmaker | None) -> None:
 
 def job_repo() -> JobRepository:
     return JobRepository(session_factory=get_session_factory())
-
-
-def user_repo() -> UserRepository:
-    return UserRepository(session_factory=get_session_factory())
 
 
 def custom_voice_repo() -> CustomVoiceRepository:

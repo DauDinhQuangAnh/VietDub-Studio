@@ -3,20 +3,10 @@ truong nay."""
 
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel
 
 from app.db.models import CustomVoice, Job
 from app.jobs.stages import stage_progress
-
-
-class RegisterIn(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=6)
-
-
-class LoginIn(BaseModel):
-    email: str
-    password: str
 
 
 class VideoAnalyzeIn(BaseModel):
@@ -39,21 +29,8 @@ class VideoMetadataOut(BaseModel):
     qualities: list[QualityOptionOut]
 
 
-class UserOut(BaseModel):
-    id: str
-    email: str
-    created_at: datetime | None = None
-
-
-class TokenOut(BaseModel):
-    token: str
-    role: str
-    user: UserOut
-
-
 class JobOut(BaseModel):
     id: str
-    user_id: str | None
     filename: str
     status: str
     stage: str | None
@@ -70,7 +47,6 @@ class JobOut(BaseModel):
             fraction, label = 1.0, "Hoàn thành"
         return cls(
             id=job.id,
-            user_id=job.user_id,
             filename=job.filename,
             status=job.status.value,
             stage=job.stage,
@@ -143,10 +119,3 @@ class VoiceSampleIn(BaseModel):
     voice: str
     rate_percent: int = 0
     pitch_hz: int = 0
-
-
-class AdminUserOut(BaseModel):
-    id: str
-    email: str
-    created_at: datetime
-    job_count: int

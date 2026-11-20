@@ -85,7 +85,6 @@ def create_download_job(
     url: str,
     title: str | None = None,
     quality: str = "best",
-    user_id: str | None = None,
     options: dict[str, Any] | None = None,
     enqueue_task=process_video_job,
     job_repo_factory=job_repo,
@@ -125,7 +124,6 @@ def create_download_job(
         input_path=input_path,
         output_dir=job_dir / "output",
         job_id=job_id,
-        user_id=user_id,
     )
     enqueue_task.delay(job_id, job_options)
     return job_id

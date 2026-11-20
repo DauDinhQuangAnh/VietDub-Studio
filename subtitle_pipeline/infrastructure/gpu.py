@@ -8,6 +8,7 @@ duoc xac minh thuc te tren may dev (xem HANDOFF.md muc "Van de dang mo").
 """
 
 import gc
+from contextlib import suppress
 
 
 def release_gpu_memory() -> None:
@@ -18,8 +19,6 @@ def release_gpu_memory() -> None:
         return
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-        try:
+        with suppress(Exception):
             torch.cuda.ipc_collect()
-        except Exception:
-            pass
     gc.collect()

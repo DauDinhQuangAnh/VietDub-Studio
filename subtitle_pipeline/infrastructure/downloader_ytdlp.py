@@ -164,7 +164,9 @@ def friendly_yt_dlp_error(message: str) -> str:
     if "tiktok" in lower and ("login" in lower or "verify" in lower or "captcha" in lower):
         return "TikTok yêu cầu đăng nhập/xác minh captcha. Hãy cập nhật cookie trong trang Admin."
     if "bilibili" in lower and ("risk control" in lower or "login" in lower):
-        return "Bilibili yêu cầu xác thực tài khoản. Hãy cập nhật cookie Bilibili trong trang Admin."
+        return (
+            "Bilibili yêu cầu xác thực tài khoản. Hãy cập nhật cookie Bilibili trong trang Admin."
+        )
     if "unsupported url" in lower:
         return "Link này chưa được yt-dlp hỗ trợ."
     if "private" in lower:

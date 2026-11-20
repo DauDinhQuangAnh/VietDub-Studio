@@ -29,13 +29,13 @@ def test_cookie_options_returns_cookiefile_when_file_exists(monkeypatch, tmp_pat
 def test_friendly_error_detects_youtube_bot_check():
     message = friendly_yt_dlp_error("ERROR: [youtube] abc123: Sign in to confirm you're not a bot.")
 
-    assert "Lam moi cookie" in message
+    assert "Làm mới cookie" in message
 
 
 def test_friendly_error_detects_cookies_are_needed_variant():
     message = friendly_yt_dlp_error("Fresh cookies (not necessarily logged in) are needed.")
 
-    assert "Lam moi cookie" in message
+    assert "Làm mới cookie" in message
 
 
 def test_friendly_error_passes_through_unknown_message():
