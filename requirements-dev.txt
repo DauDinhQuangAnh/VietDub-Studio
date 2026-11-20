@@ -1,4 +1,6 @@
 -r requirements.txt
+# Start Project installs DeepFilterNet separately because its published NumPy
+# constraint conflicts with the version required by WhisperX.
 pytest>=8.0
 ruff>=0.6.9
 pre-commit>=3.8.0

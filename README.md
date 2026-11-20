@@ -52,7 +52,7 @@ VRAM giới hạn (dev trên GPU 6GB) nên pipeline load model **tuần tự** �
 
 ## 💻 Yêu cầu máy chạy
 
-Dự án chạy trên Windows 10/11 x64 với Python 3.11 trở lên (khuyến nghị Python 3.12). GPU NVIDIA giúp xử lý nhanh hơn nhưng không bắt buộc. Không cần cài Node.js, FFmpeg, Docker, PostgreSQL hoặc Redis bằng tay: lần đầu bấm Start Project sẽ tự chuẩn bị các phần cần thiết. Cần có Internet trong lần cài đầu và lần tải model AI.
+Dự án chạy trên Windows 10/11 x64 với Python 3.11 x64. Python 3.11 hiện được yêu cầu vì thư viện xử lý âm thanh chưa phát hành wheel Windows cho Python 3.12. GPU NVIDIA giúp xử lý nhanh hơn nhưng không bắt buộc. Không cần cài Node.js, FFmpeg, Docker, PostgreSQL hoặc Redis bằng tay: lần đầu bấm Start Project sẽ tự chuẩn bị các phần cần thiết. Cần có Internet trong lần cài đầu và lần tải model AI.
 
 ## 🚀 Chạy ứng dụng
 
@@ -68,14 +68,8 @@ Sau khi trang web mở, dùng **http://localhost:5173**. Lần cài đầu có t
 
 Để dừng ứng dụng, bấm đúp **Stop Project.bat**. Dữ liệu job, file upload, kết quả và database SQLite được giữ trong `storage/`; dừng ứng dụng không xóa dữ liệu.
 
-<details>
-<summary><b>Khởi động bằng PowerShell</b></summary>
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\start_project.ps1
-```
-
-</details>
+Người dùng chỉ cần dùng **Start Project.bat** và **Stop Project.bat**; các file
+PowerShell còn lại là phần triển khai nội bộ của hai nút này.
 
 Chế độ hạ tầng có thể chọn trong `.env`: `INFRA_MODE=auto` (mặc định), `local` (SQLite, không Docker), `docker` (bắt buộc Docker), hoặc `custom` (dùng `DATABASE_URL`/`REDIS_URL` tự cấu hình). SQLite được lưu tại `storage/app.db`, queue local tại `storage/celery.db`; cả hai không cần cài database server.
 

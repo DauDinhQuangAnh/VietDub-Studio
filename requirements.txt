@@ -4,17 +4,27 @@
 # LUU Y: `torchaudio` gio la BAT BUOC (khong chi torch) - vieneu (Phase 5c,
 # xem duoi) dung torchaudio.compliance.kaldi de trich speaker embedding du
 # backbone chinh chay ONNX "torch-free" tren CPU.
+# Windows setup targets Python 3.11 x64 because deepfilterlib has no cp312 wheel.
 
 faster-whisper>=1.0.3
-whisperx>=3.3.0
-# Pin these on Windows/GPU. ctranslate2 4.4.x looks for cuDNN 8 DLLs that are
-# not shipped with the current CUDA/PyTorch setup, while numpy 2.x breaks DF.
+whisperx>=3.5.0
+# WhisperX 3.5+ requires NumPy 2; newer releases require NumPy >=2.1.
+# DeepFilterNet 0.5.6 metadata still caps NumPy below 2, so Start Project
+# installs it separately after installing this runtime dependency set.
 ctranslate2==4.8.0
-numpy<2.0
+numpy>=2.1.0,<2.2
 pyannote.audio>=3.3.0
-deepfilternet>=0.5.6
 python-dotenv>=1.0.1
 huggingface_hub>=0.23.0
+
+# Runtime dependencies of DeepFilterNet 0.5.6 (installed without its
+# incompatible NumPy metadata by start_project.ps1).
+appdirs>=1.4,<2
+deepfilterlib==0.5.6
+loguru>=0.5
+packaging>=23,<24
+sympy>=1.6
+requests>=2.27,<3
 
 # Job queue + DB (api/ FastAPI enqueue task, Celery worker xu ly).
 # Alembic quan ly thay doi schema (database_migrations/ + alembic.ini) - create_all

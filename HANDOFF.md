@@ -16,12 +16,15 @@ quyet dinh (it thay doi hon file nay) nam o `docs/memory/` - xem
 
 Luồng dành cho người dùng không chuyên:
 
-1. Cài Python 3.11 trở lên từ python.org và bật **Add Python to PATH**.
+1. Cài Python 3.11 x64 từ python.org và bật **Add Python to PATH**.
 2. Bấm đúp `Start Project.bat` ở thư mục dự án. Lần đầu chạy, script tự tạo
    `.venv`, cài requirements, tải Node.js portable và FFmpeg portable nếu máy
    chưa có, rồi mở Studio tại http://localhost:5173.
 3. Bấm đúp `Stop Project.bat` để dừng. Script giữ nguyên database, job và file
    trong `storage/`.
+
+Người dùng chỉ cần dùng hai file `.bat`; `start_project.ps1` và
+`stop_project.ps1` là implementation nội bộ. Không còn wrapper `run_local.ps1`.
 
 Không bắt buộc cài Docker, PostgreSQL, Redis, Node.js hay FFmpeg thủ công.
 `INFRA_MODE=auto` sẽ dùng PostgreSQL/Redis qua Docker nếu Docker Engine khởi
@@ -1473,15 +1476,39 @@ LLM - viec sau" o muc 6j):
 - `Start Project.bat` tao `.env` neu thieu, tao `.venv`, cai
   `requirements.txt`, tai Node.js/FFmpeg portable neu thieu, roi khoi dong
   API -> migration -> Celery -> web. `Stop Project.bat` khong xoa job/queue.
+- Hai file `.bat` la nut duy nhat nguoi dung can chay; `start_project.ps1` va
+  `stop_project.ps1` la implementation noi bo. Da xoa wrapper trung
+  `run_local.ps1`.
+- Neu Python khong co module `venv`, launcher thu dung `virtualenv` va cai
+  cong cu nay vao Python user-site neu can.
+- WhisperX moi can NumPy 2.1, trong khi metadata DeepFilterNet 0.5.6 van cam
+  NumPy 2; requirements ghim dependency runtime va launcher cai rieng
+  DeepFilterNet bang `--no-deps` sau khi cac dependency da san sang.
 - Launcher chi dung cac tien trinh co command line tro den thu muc du an,
   tranh dung nham web app khac cung may.
 - API migration that bai gio lam API startup that bai; worker chi duoc khoi
   dong sau khi API health check thanh cong, tranh worker ghi vao schema chua
   duoc migrate.
 - Kiem chung local: `ruff check --fix .`, `ruff format .`, `pytest` (131 passed),
-  cu phap ba script PowerShell va YAML Docker Compose deu pass; `npm run build`
+  cu phap hai script PowerShell va YAML Docker Compose deu pass; `npm run build`
   da pass truoc do. Docker Engine khong co trong moi truong nay, nen nhanh
   Docker va bootstrap tren may Windows sach chua duoc chay end-to-end.
+- 2026-11-20 (lan 2): Gom launcher, don cache va dung lai Python environment
+  theo yeu cau nguoi dung. Xoa wrapper `run_local.ps1`; chi giu hai nut
+  `Start Project.bat`/`Stop Project.bat` va hai PowerShell implementation.
+  Xoa `__pycache__`, `.pytest_cache`, `.ruff_cache`, `web/dist` va
+  `*.tsbuildinfo`; giu nguyen `.env`, `storage/` (DB/downloads),
+  `web/node_modules` va model cache ngoai repo.
+  Python goc la 3.11.9 nhung thieu `venv`/`ensurepip`, nen tao `.venv` bang
+  `virtualenv`; launcher co fallback tu `venv` sang `virtualenv`.
+  Ghim Python 3.11 x64 cho Windows vi `deepfilterlib` 0.5.6 chua co wheel
+  cp312; launcher kiem tra ca version va bitness truoc khi tao moi truong.
+  Cai `requirements-dev.txt`, Ruff va full pytest 131/131 pass; import
+  WhisperX/DeepFilterNet voi NumPy 2.1.3 thanh cong. `pip check` van bao
+  metadata DeepFilterNet 0.5.6 khai bao `numpy<2.0`; launcher cai rieng
+  package bang `--no-deps` sau khi cac dependency runtime da duoc cai.
+  Moi truong hien tai chi co Torch CPU (`2.8.0+cpu`), khong thay CUDA hay
+  FFmpeg trong PATH; chua chay AI job that.
 
 ## 8. Van de dang mo / can quyet dinh
 
@@ -1584,6 +1611,15 @@ LLM - viec sau" o muc 6j):
   sau cung) -> Phase 8.
 
 ## 9. Nhat ky cap nhat
+
+- 2026-11-20 (lan 2): **Gom launcher, don cache va cai lai Python environment**
+  theo yeu cau nguoi dung - xoa `run_local.ps1`, chi de 2 file `.bat` lam nut
+  Start/Stop; xoa cache Python/test/lint va web build, nhung giu `.env`,
+  `storage/`, `node_modules` va model cache. Python 3.11.9 tren moi truong nay
+  thieu `venv` nen tao `.venv` bang `virtualenv`; sua launcher de co fallback
+  tuong ung. Cai dependencies, Ruff pass va 131/131 pytest pass. Xem ghi chu
+  moi nhat o muc 6q, bao gom xung dot metadata DeepFilterNet/NumPy va gioi han
+  CPU/FFmpeg trong moi truong hien tai.
 
 - 2026-11-20: **Don gian hoa cai dat/chay tren Windows cho nguoi khong chuyen**:
   them `Start Project.bat`/`Stop Project.bat`; launcher tu tao `.env` va `.venv`,

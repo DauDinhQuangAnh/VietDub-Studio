@@ -46,9 +46,9 @@ function Invoke-NativeQuiet($Command) {
 function Resolve-PythonExe {
     $pythonLauncher = Get-Command "py.exe" -ErrorAction SilentlyContinue
     if ($pythonLauncher) {
-        foreach ($version in @("3.12", "3.11")) {
+        foreach ($version in @("3.11")) {
             try {
-                $candidate = & $pythonLauncher.Source "-$version" -c "import sys; print(sys.executable)" 2>$null
+                $candidate = & $pythonLauncher.Source "-$version" -c "import struct, sys; print(sys.executable if sys.version_info[:2] == (3, 11) and struct.calcsize('P') == 8 else '')" 2>$null
                 if ($LASTEXITCODE -eq 0 -and $candidate) {
                     return ($candidate | Select-Object -Last 1).Trim()
                 }
@@ -61,7 +61,7 @@ function Resolve-PythonExe {
     $pythonCommand = Get-Command "python.exe" -ErrorAction SilentlyContinue
     if ($pythonCommand) {
         try {
-            $candidate = & $pythonCommand.Source -c "import sys; print(sys.executable if sys.version_info >= (3, 11) else '')" 2>$null
+            $candidate = & $pythonCommand.Source -c "import struct, sys; print(sys.executable if sys.version_info[:2] == (3, 11) and struct.calcsize('P') == 8 else '')" 2>$null
             if ($LASTEXITCODE -eq 0 -and $candidate) {
                 return ($candidate | Select-Object -Last 1).Trim()
             }
@@ -70,17 +70,33 @@ function Resolve-PythonExe {
         }
     }
 
-    throw "Python 3.11 or newer was not found. Install Python from python.org, then run Start Project.bat again."
+    throw "Python 3.11 x64 was not found. Install Python 3.11 from python.org, enable Add Python to PATH, then run Start Project.bat again."
 }
 
 function Ensure-PythonEnvironment {
     $python = Join-Path $Root ".venv\Scripts\python.exe"
     if (-not (Test-Path $python)) {
         $basePython = Resolve-PythonExe
+        $environmentDir = Join-Path $Root ".venv"
         Write-Step "Creating the project Python environment"
-        & $basePython -m venv (Join-Path $Root ".venv")
+        & $basePython -m venv $environmentDir
         if ($LASTEXITCODE -ne 0) {
-            throw "Could not create .venv with $basePython."
+            Write-Warning "Python's built-in venv module is unavailable; trying virtualenv."
+            if (Test-Path $environmentDir) {
+                Remove-Item -LiteralPath $environmentDir -Recurse -Force
+            }
+
+            if ((Invoke-NativeQuiet { & $basePython -m virtualenv --version }) -ne 0) {
+                & $basePython -m pip install --disable-pip-version-check --user virtualenv
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Could not install virtualenv for $basePython."
+                }
+            }
+
+            & $basePython -m virtualenv $environmentDir
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not create .venv with either venv or virtualenv using $basePython."
+            }
         }
     }
 
@@ -96,6 +112,10 @@ function Ensure-PythonEnvironment {
         & $python -m pip install --disable-pip-version-check --prefer-binary -r (Join-Path $Root "requirements.txt")
         if ($LASTEXITCODE -ne 0) {
             throw "Python package installation failed. See the error above, fix it, then run Start Project.bat again."
+        }
+        & $python -m pip install --disable-pip-version-check --no-deps "deepfilternet==0.5.6"
+        if ($LASTEXITCODE -ne 0) {
+            throw "DeepFilterNet installation failed. See the error above, then run Start Project.bat again."
         }
         Set-Content -Path $hashFile -Value $requirementsHash -Encoding ASCII
     }
