@@ -4,12 +4,16 @@ __pycache__/
 .env
 cookies.txt
 
-phase1_feasibility/samples/*
-!phase1_feasibility/samples/.gitkeep
-phase1_feasibility/results/*
-!phase1_feasibility/results/.gitkeep
+feasibility/samples/*
+!feasibility/samples/.gitkeep
+feasibility/results/*
+!feasibility/results/.gitkeep
 
 storage/
+.tools/
+web/node_modules/
+web/dist/
+web/*.tsbuildinfo
 *.db
 *.log
 output/

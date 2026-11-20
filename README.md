@@ -5,8 +5,8 @@
 <p align="center">
   <img alt="CI" src="https://github.com/DauDinhQuangAnh/testai/actions/workflows/ci.yml/badge.svg">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white">
-  <img alt="React" src="https://img.shields.io/badge/frontend-React%20%2B%20TypeScript-61dafb?logo=react&logoColor=white">
-  <img alt="FastAPI" src="https://img.shields.io/badge/backend-FastAPI-009688?logo=fastapi&logoColor=white">
+  <img alt="React" src="https://img.shields.io/badge/web-React%20%2B%20TypeScript-61dafb?logo=react&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/api-FastAPI-009688?logo=fastapi&logoColor=white">
   <img alt="Project type" src="https://img.shields.io/badge/type-personal%20project-lightgrey">
 </p>
 
@@ -22,7 +22,7 @@
 - 📥 **Tải video từ YouTube** — kèm cơ chế tự làm mới cookie bằng Playwright để tránh bị chặn "Sign in to confirm you're not a bot".
 - 🧙 **Wizard 6 bước** — Nguồn → Giọng đọc → Dịch → Phụ đề → Âm thanh & Xuất → Xem lại, khóa tuần tự từng bước.
 - 🤖 **Bot Telegram** — gửi link video qua chat, bot tự xử lý và trả kết quả qua Telegram hoặc email.
-- 👤 **Web app đầy đủ** — đăng ký/đăng nhập, trang quản trị (admin), theo dõi tiến độ job theo thời gian thực, gửi email khi job hoàn thành.
+- 👤 **Web app local đầy đủ** — chạy thẳng Studio không đăng nhập, theo dõi tiến độ job theo thời gian thực và quản lý cookie/giong clone.
 
 ## 🧠 Kiến trúc pipeline
 
@@ -46,41 +46,38 @@ VRAM giới hạn (dev trên GPU 6GB) nên pipeline load model **tuần tự** �
 | Layer | Công nghệ |
 |---|---|
 | AI pipeline | FFmpeg · DeepFilterNet3 · Faster-Whisper · WhisperX · pyannote.audio · NLLB-200 · edge-tts |
-| Backend | FastAPI · Celery · SQLAlchemy · PostgreSQL · Redis |
+| Backend | FastAPI · Celery · SQLAlchemy · SQLite mặc định · PostgreSQL/Redis tùy chọn |
 | Frontend | React 18 · TypeScript · Vite · Tailwind CSS · TanStack Query |
-| Hạ tầng dev | Docker Compose · GitHub Actions CI (Ruff + pytest + frontend build) |
+| Hạ tầng dev | Docker Compose · GitHub Actions CI (Ruff + pytest + web build) |
 
 ## 💻 Yêu cầu máy chạy
 
-Dự án là **tool cá nhân**, thiết kế chạy trên máy có GPU NVIDIA (đã xác nhận chạy được trên RTX 4050 Laptop 6GB VRAM). Cần Python 3.12, FFmpeg, Docker Desktop, torch bản CUDA. Xem checklist cài đặt đầy đủ tại mục **"0. Setup nhanh trên máy dev thật"** trong [HANDOFF.md](HANDOFF.md).
+Dự án chạy trên Windows 10/11 64-bit với Python 3.11 trở lên (khuyến nghị Python 3.12). GPU NVIDIA giúp xử lý nhanh hơn nhưng không bắt buộc. Không cần cài Node.js, FFmpeg, Docker, PostgreSQL hoặc Redis bằng tay: lần đầu bấm Start Project sẽ tự chuẩn bị các phần cần thiết. Cần có Internet trong lần cài đầu và lần tải model AI.
 
-## 🚀 Chạy dev
+## 🚀 Chạy ứng dụng
 
-Cách nhanh nhất — 1 lệnh khởi động toàn bộ (Docker Compose + Celery + FastAPI + Vite):
+1. Cài Python từ [python.org](https://www.python.org/downloads/), bật tùy chọn **Add Python to PATH**.
+2. Mở thư mục dự án và bấm đúp **Start Project.bat**.
+
+Lần đầu chạy, ứng dụng sẽ tạo môi trường Python riêng, cài thư viện, tải Node.js và FFmpeg portable nếu máy chưa có, rồi tự chọn hạ tầng:
+
+- Docker chạy được: dùng PostgreSQL và Redis trong Docker.
+- Không có Docker hoặc Docker Desktop chưa khởi động được: dùng SQLite và hàng đợi công việc trong `storage/`, không cần cài hay cấu hình database server.
+
+Sau khi trang web mở, dùng **http://localhost:5173**. Lần cài đầu có thể mất nhiều thời gian và dung lượng do thư viện AI; model sẽ tiếp tục được tải khi chạy các bước AI lần đầu.
+
+Để dừng ứng dụng, bấm đúp **Stop Project.bat**. Dữ liệu job, file upload, kết quả và database SQLite được giữ trong `storage/`; dừng ứng dụng không xóa dữ liệu.
+
+<details>
+<summary><b>Khởi động bằng PowerShell</b></summary>
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_project.ps1
 ```
 
-Sau khi chạy xong, mở **http://localhost:5173**.
-
-Dừng lại:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\stop_project.ps1
-```
-
-<details>
-<summary><b>Chạy thủ công từng tiến trình</b></summary>
-
-```powershell
-docker compose up -d
-python -m celery -A app.jobs.celery_app worker --loglevel=info --pool=solo
-python -m uvicorn backend.main:app --host localhost --port 8000 --reload
-cd frontend; npm run dev -- --host localhost --port 5173
-```
-
 </details>
+
+Chế độ hạ tầng có thể chọn trong `.env`: `INFRA_MODE=auto` (mặc định), `local` (SQLite, không Docker), `docker` (bắt buộc Docker), hoặc `custom` (dùng `DATABASE_URL`/`REDIS_URL` tự cấu hình). SQLite được lưu tại `storage/app.db`, queue local tại `storage/celery.db`; cả hai không cần cài database server.
 
 ## 📚 Tài liệu
 

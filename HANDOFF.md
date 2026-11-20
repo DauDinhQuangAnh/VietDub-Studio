@@ -9,47 +9,31 @@ quyet dinh (it thay doi hon file nay) nam o `docs/memory/` - xem
 - Sau khi hoan thanh hoac thay doi gi quan trong, cap nhat lai file nay (khong tao
   them file trang thai/markdown khac trung muc dich).
 - Ket qua do dac (VRAM/thoi gian) duoc ghi tu dong vao bang o cuoi file boi script
-  `phase1_feasibility/summarize_results.py` - khong sua tay bang do, chi sua bang
+  `feasibility/summarize_results.py` - khong sua tay bang do, chi sua bang
   cach chay lai script.
 
-## 0. Setup nhanh tren may dev that (RTX 4050) - lam theo thu tu
+## 0. Chay nhanh tren Windows
 
-Checklist gop tu cac phase, de bat dau tu 1 may Windows 11 sach:
+Luồng dành cho người dùng không chuyên:
 
-1. **Cai dat he thong (1 lan):**
-   - Python 3.12 that tu python.org (KHONG dung stub Microsoft Store; tick
-     "Add python.exe to PATH" khi cai). Kiem tra: `python --version`.
-   - FFmpeg: `winget install Gyan.FFmpeg` (mo terminal moi sau khi cai).
-     Kiem tra: `ffmpeg -version`.
-   - Driver NVIDIA moi nhat. Kiem tra: `nvidia-smi` phai hien RTX 4050.
-   - Docker Desktop (cho Postgres + Redis). Kiem tra: `docker --version`.
-   - Git. Kiem tra: `git --version`.
-2. **Lay code:** `git clone https://github.com/DauDinhQuangAnh/testai.git`
-   roi `cd testai`.
-3. **Virtualenv:** `python -m venv .venv` roi `.venv\Scripts\activate`.
-4. **Torch ban CUDA (TRUOC khi cai requirements):** xem lenh dung tai
-   https://pytorch.org/get-started/locally/ ung voi driver dang co, vi du:
-   `pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121`
-5. **Dependencies:** `pip install -r requirements-dev.txt` (bao gom ca
-   requirements.txt + ruff/pytest/pre-commit).
-6. **File .env:** copy `.env.example` thanh `.env`, dien:
-   - `HF_TOKEN`: tao tai khoan HuggingFace, accept license
-     `pyannote/speaker-diarization-3.1` va `pyannote/segmentation-3.0`
-     (bam "Agree" tren trang model), roi tao token tai
-     https://huggingface.co/settings/tokens
-   - Cac bien S3 de trong cung duoc (chi can khi test Phase 8 voi S3 that).
-   - (SESSION_SECRET_KEY da bi xoa cung voi Auth 2026-07-03 - khong con can.)
-7. **Postgres + Redis:** `docker compose up -d`. Kiem tra: `docker ps` thay
-   2 container.
-8. **Pre-commit hook (1 lan):** `pre-commit install`.
-9. **Chay kiem tra theo dung thu tu o muc 8 ("Uu tien thu tu kiem thu")** -
-   bat dau bang `python phase1_feasibility/check_env.py`, roi `pytest`, roi
-   cac phase tu thap len cao. Gap loi thi ghi vao muc 8 (hoac bao AI dang lam
-   viec cung cap nhat).
+1. Cài Python 3.11 trở lên từ python.org và bật **Add Python to PATH**.
+2. Bấm đúp `Start Project.bat` ở thư mục dự án. Lần đầu chạy, script tự tạo
+   `.venv`, cài requirements, tải Node.js portable và FFmpeg portable nếu máy
+   chưa có, rồi mở Studio tại http://localhost:5173.
+3. Bấm đúp `Stop Project.bat` để dừng. Script giữ nguyên database, job và file
+   trong `storage/`.
 
-Luu y dung luong: lan chay dau se tai model tu HuggingFace (~3-6GB tuy model:
-Whisper medium ~1.5GB, large-v3 ~3GB, pyannote ~vai tram MB, NLLB ~2.4GB neu
-test dich) - can mang on dinh va o dia trong.
+Không bắt buộc cài Docker, PostgreSQL, Redis, Node.js hay FFmpeg thủ công.
+`INFRA_MODE=auto` sẽ dùng PostgreSQL/Redis qua Docker nếu Docker Engine khởi
+động được; nếu không, app dùng SQLite `storage/app.db` và queue SQLite
+`storage/celery.db`. Có thể đặt `INFRA_MODE=local` để luôn dùng file local,
+`docker` để bắt buộc dùng Docker, hoặc `custom` để dùng `DATABASE_URL` và
+`REDIS_URL` do người dùng cấu hình.
+
+Python packages và model AI có thể tải nhiều GB và cần Internet. GPU NVIDIA
+không bắt buộc nhưng giúp xử lý nhanh hơn; máy CPU có thể chạy chậm. Một số
+tính năng tùy chọn cần API key hoặc Hugging Face token, được ghi trong
+`.env.example`.
 
 ## 1. Muc tieu san pham
 
@@ -70,7 +54,7 @@ FastAPI) - giu lai de hieu boi canh/ly do, xem trang thai THAT HIEN TAI ngay
 sau do.**
 
 - **Bỏ Telegram bot và Gửi mail (2026-11-20)**:
-  Đã xóa hoàn toàn module `app/telegram_bot/` và `backend/email_sender.py`, loại bỏ các cấu hình
+  Đã xóa hoàn toàn module `worker/telegram_bot/` và `api/email_sender.py`, loại bỏ các cấu hình
   `SMTP_*` và `TELEGRAM_*` trong `.env`. Hệ thống tập trung 100% vào web app Studio cá nhân trực tiếp.
 - **Tool cá nhân (Single-user Personal Tool, cập nhật 2026-11-20)**:
   Bỏ hoàn toàn đăng nhập / đăng ký / landing page thương mại. Mở localhost (http://localhost:5173)
@@ -81,14 +65,14 @@ sau do.**
   cho phép chạy toàn bộ flow phiên âm, dịch và lồng tiếng mà không tốn GPU/VRAM; bổ sung fallback an toàn
   cho `diarize` tránh văng exception làm fail job trên máy không có GPU.
 - ~~Frontend/Backend UI: Streamlit xuyen suot~~ - **DA DAO NGUOC + XOA HOAN
-  TOAN Streamlit (2026-07-04)**: UI gio la `frontend/` (React + TypeScript +
-  Tailwind, Vite) goi `backend/` (FastAPI REST API) qua HTTP. Celery worker
-  + Postgres/Redis giu nguyen vai tro cu (backend enqueue task, worker xu ly
+  TOAN Streamlit (2026-07-04)**: UI gio la `web/` (React + TypeScript +
+  Tailwind, Vite) goi `api/` (FastAPI REST API) qua HTTP. Celery worker
+  + Postgres/Redis giu nguyen vai tro cu (api enqueue task, worker xu ly
   ngam, khong doi gi ve pipeline/Celery). Xem muc 6k de biet kien truc day
   du + cach chay 4 tien trinh.
 - **Subtitle editor** (chinh sua text/timing/speaker) hien CHUA duoc port
   sang UI React (Editor.py cu la Streamlit `st.data_editor`, da xoa cung
-  Streamlit) - CAN LAM LAI o `frontend/` neu van can tinh nang nay (ghi nhan
+  Streamlit) - CAN LAM LAI o `web/` neu van can tinh nang nay (ghi nhan
   o muc 8 "Van de dang mo").
 ## 3. Rang buoc moi truong quan trong (BAT BUOC DOC)
 
@@ -136,27 +120,27 @@ sau do.**
 va thoi gian xu ly thuc te cho tung buoc, chon model size phu hop cho dev.
 
 **Code da viet (boi Claude Code, CHUA duoc chay thu tren may that):**
-- `phase1_feasibility/check_env.py` - kiem tra Python/CUDA/ffmpeg/packages/HF_TOKEN
-- `phase1_feasibility/step01_extract_audio.py` - FFmpeg tach audio 16kHz mono
-- `phase1_feasibility/step02_denoise.py` - DeepFilterNet3
-- `phase1_feasibility/step03_vad.py` - Silero VAD (chi de do hieu nang tham khao,
-  khong co adapter tuong duong trong subtitle_pipeline - xem muc 7)
-- `phase1_feasibility/step04_transcribe.py` - Faster-Whisper (chon model size +
+- `feasibility/check_env.py` - kiem tra Python/CUDA/ffmpeg/packages/HF_TOKEN
+- `feasibility/step01_extract_audio.py` - FFmpeg tach audio 16kHz mono
+- `feasibility/step02_denoise.py` - DeepFilterNet3
+- `feasibility/step03_vad.py` - Silero VAD (chi de do hieu nang tham khao,
+  khong co adapter tuong duong trong pipeline - xem muc 7)
+- `feasibility/step04_transcribe.py` - Faster-Whisper (chon model size +
   compute type qua tham so)
-- `phase1_feasibility/step05_align.py` - WhisperX alignment
-- `phase1_feasibility/step06_diarize.py` - pyannote diarization
-- `phase1_feasibility/measure.py` - helper do thoi gian/VRAM peak, dung chung
+- `feasibility/step05_align.py` - WhisperX alignment
+- `feasibility/step06_diarize.py` - pyannote diarization
+- `feasibility/measure.py` - helper do thoi gian/VRAM peak, dung chung
   boi tat ca script step0X (khong con nam trong subpackage `utils/` rieng - da
   lam phang thu muc de tranh 1 package chi co dung 1 file)
 - Cac script `step01`, `step02`, `step04`, `step05`, `step06` goi TRUC TIEP cac
-  adapter trong `subtitle_pipeline/infrastructure/` (Phase 2) thay vi tu viet
+  adapter trong `pipeline/infrastructure/` (Phase 2) thay vi tu viet
   lai logic goi thu vien AI - vua tranh trung lap code, vua dam bao so lieu do
   duoc chinh la hieu nang cua code se chay that trong production. Rieng
   `step03_vad.py` khong co adapter tuong duong nen van la ban doc lap.
-- `phase1_feasibility/run_all.py` - chay tuan tu step01->step06, MOI BUOC LA 1
+- `feasibility/run_all.py` - chay tuan tu step01->step06, MOI BUOC LA 1
   SUBPROCESS RIENG (de dam bao VRAM duoc giai phong that su giua cac buoc,
   tranh do sai do CUDA memory fragmentation trong cung 1 process)
-- `phase1_feasibility/summarize_results.py` - doc `results/phase1_results.jsonl`
+- `feasibility/summarize_results.py` - doc `results/phase1_results.jsonl`
   va tu dong ghi de bang ket qua ben duoi vao file HANDOFF.md nay
 
 **Viec nguoi dung can lam tren may dev that (theo thu tu):**
@@ -172,10 +156,10 @@ va thoi gian xu ly thuc te cho tung buoc, chon model size phu hop cho dev.
 7. Tao tai khoan HuggingFace, chap nhan license cho `pyannote/speaker-diarization-3.1`
    va `pyannote/segmentation-3.0`, tao access token, copy `.env.example` thanh `.env`
    va dien `HF_TOKEN=...` (hoac set bien moi truong truc tiep).
-8. Bo 1 file video/audio mau (5-10 phut, co tieng noi) vao `phase1_feasibility/samples/`.
-9. Chay: `python phase1_feasibility/check_env.py` - sua loi neu co truoc khi tiep tuc.
-10. Chay: `python phase1_feasibility/run_all.py phase1_feasibility/samples/<ten_file>`.
-11. Chay: `python phase1_feasibility/summarize_results.py` - lenh nay se TU DONG cap
+8. Bo 1 file video/audio mau (5-10 phut, co tieng noi) vao `feasibility/samples/`.
+9. Chay: `python feasibility/check_env.py` - sua loi neu co truoc khi tiep tuc.
+10. Chay: `python feasibility/run_all.py feasibility/samples/<ten_file>`.
+11. Chay: `python feasibility/summarize_results.py` - lenh nay se TU DONG cap
     nhat bang ket qua o muc 6 ben duoi trong chinh file HANDOFF.md nay.
 12. Bao lai (hoac de Codex/Claude Code doc lai file nay) ket qua + bat ky loi/canh
     bao nao gap phai o muc "Van de dang mo" ben duoi.
@@ -189,8 +173,8 @@ va thoi gian xu ly thuc te cho tung buoc, chon model size phu hop cho dev.
 ## 6. Ket qua do dac Phase 1 (TU DONG cap nhat boi summarize_results.py)
 
 <!-- PHASE1_RESULTS_START -->
-(chua co ket qua nao, chay `phase1_feasibility/run_all.py` roi
-`phase1_feasibility/summarize_results.py` de dien vao day)
+(chua co ket qua nao, chay `feasibility/run_all.py` roi
+`feasibility/summarize_results.py` de dien vao day)
 <!-- PHASE1_RESULTS_END -->
 
 ## 6b. Phase 2 - AI Pipeline Core (dong goi module hoa)
@@ -202,22 +186,22 @@ tai su dung duoc, chay qua CLI (input video -> output SRT/VTT/ASS/TXT/JSON).
 that** - nguoi dung chon lam Phase 2 truoc khi co ket qua do Phase 1 (xem muc 7).
 
 **Kien truc (Clean Architecture):**
-- `subtitle_pipeline/domain/` - kieu du lieu thuan (`models.py`) + interface
+- `pipeline/domain/` - kieu du lieu thuan (`models.py`) + interface
   (`ports.py`, dung `typing.Protocol`) - khong phu thuoc thu vien AI nao.
-- `subtitle_pipeline/infrastructure/` - adapter that cho tung buoc: `audio.py`
+- `pipeline/infrastructure/` - adapter that cho tung buoc: `audio.py`
   (FFmpeg), `denoiser_deepfilternet.py`, `transcriber_faster_whisper.py`,
   `aligner_whisperx.py`, `diarizer_pyannote.py`, `gpu.py` (giai phong VRAM). Moi
   adapter la context manager (load model o `__enter__`, giai phong o `__exit__`)
   va CHI import thu vien AI ben trong ham/method (khong o top-level module) - nho
   vay cac layer khac khong bi buoc phai cai torch/whisper/pyannote/deepfilternet.
-- `subtitle_pipeline/application/pipeline.py` - `TranscriptionPipeline` dieu phoi
+- `pipeline/application/pipeline.py` - `TranscriptionPipeline` dieu phoi
   tuan tu cac buoc, chi phu thuoc `domain/ports.py` (khong import truc tiep AI
   libs), nhan adapter qua factory (co the inject fake khi test).
   `application/merge.py` - gan speaker vao subtitle segment theo overlap lon nhat
   voi ket qua diarization.
-- `subtitle_pipeline/export/formats.py` - ham thuan (khong AI deps) xuat
+- `pipeline/export/formats.py` - ham thuan (khong AI deps) xuat
   SRT/VTT/ASS/TXT/JSON.
-- `subtitle_pipeline/cli.py` - entry point: `python -m subtitle_pipeline.cli
+- `pipeline/cli.py` - entry point: `python -m pipeline.cli
   input.mp4 --out-dir output --formats srt,vtt,ass,txt,json`.
 - `tests/` - `fakes.py` (fake adapter) + `test_pipeline.py`, `test_merge.py`,
   `test_export_formats.py`. Vi cac layer domain/application/export khong import
@@ -230,8 +214,8 @@ that** - nguoi dung chon lam Phase 2 truoc khi co ket qua do Phase 1 (xem muc 7)
    chi muon chay unit test nhanh ma chua can AI libs).
 2. Chay `pytest` tu goc repo - xac nhan toan bo test pass (logic dieu phoi +
    export dinh dang, khong dung GPU that).
-3. Chay thu CLI that voi video mau: `python -m subtitle_pipeline.cli
-   phase1_feasibility/samples/<file> --out-dir output`. Day la lan dau kiem tra
+3. Chay thu CLI that voi video mau: `python -m pipeline.cli
+   feasibility/samples/<file> --out-dir output`. Day la lan dau kiem tra
    viec giai phong VRAM trong CUNG 1 process (gc.collect + torch.cuda.empty_cache,
    khac voi Phase 1 dung subprocess rieng) co du de tranh OOM khi chay het 5
    buoc lien tiep hay khong.
@@ -252,25 +236,25 @@ that** - nguoi dung chon lam Phase 2 truoc khi co ket qua do Phase 1 (xem muc 7)
 that** - chua co Postgres/Redis/Celery worker nao duoc khoi dong de kiem tra.
 
 **Kien truc:**
-- `app/db/models.py` - ORM `Job` (SQLAlchemy 2.0 `Mapped`/`mapped_column`):
+- `worker/db/models.py` - ORM `Job` (SQLAlchemy 2.0 `Mapped`/`mapped_column`):
   id, filename, input_path, output_dir, status (queued/running/done/failed),
   stage (buoc hien tai, cap nhat qua callback `on_stage` cua
   `TranscriptionPipeline.run` - xem Phase 2), error_message, created_at, updated_at.
-- `app/db/session.py` - `make_session_factory(database_url=None)`, KHONG tao
+- `worker/db/session.py` - `make_session_factory(database_url=None)`, KHONG tao
   engine o module-level (chi tao khi goi ham) de test duoc bang SQLite in-memory
   ma khong dung toi Postgres that.
-- `app/jobs/repository.py` - `JobRepository` nhan `session_factory` qua
+- `worker/jobs/repository.py` - `JobRepository` nhan `session_factory` qua
   constructor (mac dinh dung Postgres that qua `make_session_factory()`), cac
   Streamlit page/Celery task khong tu viet SQL/session truc tiep.
-- `app/jobs/celery_app.py` - Celery app, `worker_concurrency = 1` (may dev VRAM
+- `worker/jobs/celery_app.py` - Celery app, `worker_concurrency = 1` (may dev VRAM
   han che, xem docs/memory/dev-machine-rtx4050.md).
-- `app/jobs/tasks.py` - task `process_video_job(job_id)`: chay
+- `worker/jobs/tasks.py` - task `process_video_job(job_id)`: chay
   `TranscriptionPipeline` (Phase 2) voi `on_stage` callback cap nhat
   `Job.stage` vao DB, export 5 dinh dang, cap nhat `Job.status` DONE/FAILED.
-- `app/Home.py`, `app/pages/1_Upload.py`, `app/pages/2_Dashboard.py` - Streamlit
+- `worker/Home.py`, `worker/pages/1_Upload.py`, `worker/pages/2_Dashboard.py` - Streamlit
   multipage app. Moi file co doan them thu muc goc repo vao `sys.path` o dau
   (Streamlit khong tu them, chi them thu muc chua file dang chay - can de import
-  `app.*`/`subtitle_pipeline.*` hoat dong dung).
+  `app.*`/`pipeline.*` hoat dong dung).
 - `docker-compose.yml` - Postgres 16 + Redis 7 cho dev (`docker compose up -d`).
 - `tests/test_job_repository.py` - test `JobRepository` bang SQLite in-memory,
   khong can Postgres chay.
@@ -283,10 +267,10 @@ that** - chua co Postgres/Redis/Celery worker nao duoc khoi dong de kiem tra.
    `REDIS_URL`, `STORAGE_DIR`.
 3. `pip install -r requirements.txt` (them streamlit/sqlalchemy/psycopg2-binary/
    celery/redis so voi Phase 1-2).
-4. Chay Celery worker (terminal rieng): `python -m celery -A app.jobs.celery_app
+4. Chay Celery worker (terminal rieng): `python -m celery -A worker.jobs.celery_app
    worker --loglevel=info` (dung `python -m celery`, KHONG dung lenh `celery`
-   truc tiep - xem comment trong `app/jobs/celery_app.py`).
-5. Chay Streamlit (terminal khac): `streamlit run app/Home.py`.
+   truc tiep - xem comment trong `worker/jobs/celery_app.py`).
+5. Chay Streamlit (terminal khac): `streamlit run worker/Home.py`.
 6. Vao trang Upload, tai 1 file mau len, bam "Tao job xu ly".
 7. Vao trang Dashboard, bam "Lam moi", theo doi `stage` thay doi, cho toi khi
    `status = done` roi tai file ket qua.
@@ -305,7 +289,7 @@ that** - chua co Postgres/Redis/Celery worker nao duoc khoi dong de kiem tra.
 **Trang thai:** Code xong (2026-07-02), **CHUA chay thu**. Dung `st.data_editor`
 thay vi Custom Streamlit Component (xem "Quyet dinh moi" o muc 2).
 
-**Kien truc:** `app/pages/3_Editor.py` - chon job DONE, doc file `.json` ket
+**Kien truc:** `worker/pages/3_Editor.py` - chon job DONE, doc file `.json` ket
 qua, hien thi bang co the sua (`st.data_editor`), nut "Luu va xuat lai file"
 ghi de ca 5 dinh dang qua `FORMAT_WRITERS` (tai su dung Phase 2).
 
@@ -322,21 +306,21 @@ CPL/so dong.
 trong toan bo cac adapter da viet.**
 
 **Kien truc:**
-- `subtitle_pipeline/application/optimize.py` - `optimize_segments()`, ham
+- `pipeline/application/optimize.py` - `optimize_segments()`, ham
   thuan (khong AI deps), gioi han 42 ky tu/dong, toi da 2 dong, khong lam mat
   noi dung (don phan du vao dong cuoi thay vi cat bo). Co test
   (`tests/test_optimize.py`).
-- `subtitle_pipeline/infrastructure/translator_nllb.py` - `NLLBTranslator`,
+- `pipeline/infrastructure/translator_nllb.py` - `NLLBTranslator`,
   dung model `facebook/nllb-200-distilled-600M` qua `transformers`
   (`AutoModelForSeq2SeqLM` + `AutoTokenizer`, `forced_bos_token_id`). **CANH
   BAO: day la adapter DUY NHAT chua tung chay/kiem thu du 1 lan, viet hoan toan
   dua theo tai lieu HuggingFace. Cach goi API co the sai lech giua cac phien
   ban `transformers`** (xem docstring trong file de biet chi tiet diem nghi
   ngo).
-- `subtitle_pipeline/application/translate.py` - `translate_and_export()`:
+- `pipeline/application/translate.py` - `translate_and_export()`:
   dich + toi uu + xuat file voi hau to ngon ngu (vd. `video.en.srt`).
-- `app/jobs/tasks.py` - Celery task `translate_job(job_id, target_language)`.
-- `app/pages/3_Editor.py` - muc "Dich sang ngon ngu khac" o cuoi trang, enqueue
+- `worker/jobs/tasks.py` - Celery task `translate_job(job_id, target_language)`.
+- `worker/pages/3_Editor.py` - muc "Dich sang ngon ngu khac" o cuoi trang, enqueue
   `translate_job`.
 
 **Viec can lam:** Sau khi co job DONE, vao Editor, chon ngon ngu dich, bam
@@ -346,7 +330,7 @@ trong toan bo cac adapter da viet.**
 ## 6f. Phase 6 - Auth/User Management (DA XOA)
 
 **Da xoa hoan toan ngay 2026-07-03** theo yeu cau nguoi dung: du an la tool ca
-nhan, khong can dang ky/dang nhap/phan quyen theo user. Da xoa `app/auth/`
+nhan, khong can dang ky/dang nhap/phan quyen theo user. Da xoa `worker/auth/`
 (`security.py`, `repository.py`, `streamlit_helpers.py`), model `User`, cot
 `Job.user_id`, dependency `bcrypt`/`pyjwt`/`extra-streamlit-components`, bien
 env `SESSION_SECRET_KEY`. Xem "Quyet dinh moi" de biet chi tiet + anh huong
@@ -356,8 +340,8 @@ schema DB (can reset DB, xem muc 8).
 
 **Da xoa hoan toan ngay 2026-07-03** cung luc voi Auth (khong con Auth thi
 khong con khai niem "usage cua 1 user" de gioi han) - du an khong con huong
-toi SaaS thuong mai. Da xoa `app/billing/` (`plans.py`, `usage.py`,
-`repository.py`), `app/pages/4_Billing.py`, model `PlanTier`/`Subscription`.
+toi SaaS thuong mai. Da xoa `worker/billing/` (`plans.py`, `usage.py`,
+`repository.py`), `worker/pages/4_Billing.py`, model `PlanTier`/`Subscription`.
 Xem "Quyet dinh moi" de biet chi tiet.
 
 ## 6h. Phase 8 - Bao mat + Ha tang Production (mot phan)
@@ -371,19 +355,19 @@ nhieu so voi "production-ready" that su (xem "Van de dang mo").
 - `.github/workflows/ci.yml` - chay `ruff check` + `ruff format --check` +
   `pytest` tren moi push/PR len `main`.
 - Hardening Upload: gioi han kich thuoc file (500MB) + kiem tra dinh dang phia
-  server trong `backend/routers/jobs.py` (khong chi dua vao content-type nguoi
+  server trong `api/routers/jobs.py` (khong chi dua vao content-type nguoi
   dung gui len).
 
 **CHUA lam (ghi nhan de lam sau, khong xay truoc khi can - tranh du thua):**
 - Secrets management that (Vault, AWS Secrets Manager...) - hien dang dung
   `.env`/bien moi truong, du cho dev/MVP nhung khong phai chuan production.
-- Deploy multi-instance backend FastAPI + reverse proxy.
+- Deploy multi-instance api FastAPI + reverse proxy.
 
 **Viec can lam:** Xem CI chay pass tren GitHub sau khi push.
 
 **Cap nhat 2026-07-13 - XOA S3 storage abstraction:** theo yeu cau nguoi dung
 ("s3 storage đi ko cần đâu clean phần đó luôn") - du an la tool ca nhan chay
-local, khong can S3/MinIO. Da xoa `app/storage.py` (`Storage`
+local, khong can S3/MinIO. Da xoa `worker/storage.py` (`Storage`
 Protocol/`LocalStorage`/`S3Storage`) + `tests/test_storage.py`, bo dependency
 `boto3` khoi `requirements.txt`, bo `STORAGE_BACKEND`/`S3_BUCKET`/`S3_PREFIX`
 khoi `.env`/`.env.example`. Module nay tu truoc gio KHONG duoc noi vao
@@ -419,28 +403,28 @@ CC-BY-NC (chap nhan duoc vi du an khong con thuong mai). **Sau khi chay thu
 tren may dev that, chat luong giong MMS-TTS qua te (VITS robot, phat am sai
 nhieu) - da thay bang `edge-tts`, xem chi tiet o "Cap nhat 2026-07-03 lan 2".**
 
-**Kien truc (noi tiep dung Clean Architecture cua `subtitle_pipeline/`):**
-- `subtitle_pipeline/domain/ports.py` - them Protocol `VoiceSynthesizer`.
-- `subtitle_pipeline/infrastructure/tts_edge.py` - `EdgeTTSSynthesizer` (thay
+**Kien truc (noi tiep dung Clean Architecture cua `pipeline/`):**
+- `pipeline/domain/ports.py` - them Protocol `VoiceSynthesizer`.
+- `pipeline/infrastructure/tts_edge.py` - `EdgeTTSSynthesizer` (thay
   the `tts_mms.py` da xoa - xem "Cap nhat 2026-07-03 lan 2" ben duoi).
-- `subtitle_pipeline/infrastructure/audio_timing.py` - `probe_duration_seconds`
+- `pipeline/infrastructure/audio_timing.py` - `probe_duration_seconds`
   (ffprobe) + `time_stretch_to_duration` (ffmpeg `atempo`, tu chia nho factor
   ngoai khoang [0.5, 2.0] thanh chuoi filter - ham thuan `_clamp_atempo_factors`
   co test rieng).
-- `subtitle_pipeline/infrastructure/audio_mux.py` - `build_dub_track` (dung
+- `pipeline/infrastructure/audio_mux.py` - `build_dub_track` (dung
   track audio day du bang numpy, dat tung clip TTS vao dung offset theo
   timeline goc, khoang trong la im lang) + `mux_audio_into_video` (ffmpeg,
   giu nguyen video stream `-c:v copy`, chi thay audio stream).
-- `subtitle_pipeline/application/dub.py` - `dub_and_export()` dieu phoi:
+- `pipeline/application/dub.py` - `dub_and_export()` dieu phoi:
   synthesize tung segment -> stretch khop `end-start` -> dung track theo
   tong thoi luong (doc tu `_work/audio_denoised.wav` con luu tu Phase 2, hoac
   ffprobe video goc neu file khong con) -> mux vao video -> tra ve duong dan
   `<stem>.<lang>.dubbed.mp4`.
-- `app/jobs/tasks.py` - Celery task `dub_job(job_id, target_language)` va
+- `worker/jobs/tasks.py` - Celery task `dub_job(job_id, target_language)` va
   helper `_load_or_translate_segments()` (dung chung logic voi `translate_job`
   nhung tu dong dich truoc neu chua co file `.{lang}.json`, dung de `dub_job`
   khong bat buoc nguoi dung phai bam "Dich" rieng truoc).
-- `app/pages/3_Editor.py` - **theo yeu cau nguoi dung, gop lam 1 nut duy nhat**
+- `worker/pages/3_Editor.py` - **theo yeu cau nguoi dung, gop lam 1 nut duy nhat**
   "Dich + Long tieng" (khong bat bam dich xong roi moi bam long tieng rieng)
   o khoi moi ben duoi khoi "Dich sang ngon ngu khac" (khoi cu van giu nguyen,
   van huu ich neu chi can phu de dich, khong can audio). Sau khi co file
@@ -448,12 +432,12 @@ nhieu) - da thay bang `edge-tts`, xem chi tiet o "Cap nhat 2026-07-03 lan 2".**
 
 **Cap nhat 2026-07-03 (sau khi nguoi dung dung thu tren may dev that va yeu
 cau don gian hoa flow) - gop toan bo vao 1 buoc upload duy nhat:**
-- `app/pages/1_Upload.py` - them o chon "Ngon ngu long tieng" (dung chung
+- `worker/pages/1_Upload.py` - them o chon "Ngon ngu long tieng" (dung chung
   `SUPPORTED_LANGUAGES`, xem duoi) ngay tai trang Upload, mac dinh `vi`.
   `process_video_job.delay(job.id, target_language)` truyen thang ngon ngu
   vao job chinh - nguoi dung KHONG can vao Editor bam gi nua, chi upload 1
   lan la ra video hoan chinh.
-- `app/jobs/tasks.py` - `process_video_job(job_id, target_language=None)`:
+- `worker/jobs/tasks.py` - `process_video_job(job_id, target_language=None)`:
   neu co `target_language`, sau khi transcribe xong se **goi tiep luon trong
   cung 1 task** `translate_and_export()` (stage "translate") roi
   `dub_and_export()` (stage "dub"), cap nhat `Job.stage` xuyen suot ca 2 giai
@@ -462,13 +446,13 @@ cau don gian hoa flow) - gop toan bo vao 1 buoc upload duy nhat:**
   Trang Editor (`dub_job`/`translate_job`) van giu nguyen, dung de **lam lai
   hoac doi ngon ngu khac sau nay** (khong phai buoc bat buoc trong flow
   chinh nua).
-- `subtitle_pipeline/infrastructure/translator_nllb.py` - them hang so
+- `pipeline/infrastructure/translator_nllb.py` - them hang so
   `SUPPORTED_LANGUAGES = list(NLLB_LANGUAGE_CODES.keys())`, dung chung boi ca
   `1_Upload.py` va `3_Editor.py` (truoc do moi noi tu hardcode 1 list rieng,
   de lech nhau).
-- `app/jobs/repository.py` - them `JobRepository.delete(job_id)`. Co test
+- `worker/jobs/repository.py` - them `JobRepository.delete(job_id)`. Co test
   (`tests/test_job_repository.py`).
-- `app/pages/2_Dashboard.py` - them checkbox "Xac nhan xoa" + nut "Xoa job"
+- `worker/pages/2_Dashboard.py` - them checkbox "Xac nhan xoa" + nut "Xoa job"
   cho tung job: xoa ca record DB (`repo.delete`) LAN toan bo file tren dia
   (`shutil.rmtree(Path(job.output_dir).parent)` - xoa ca video goc va thu
   muc output, vi ca hai deu nam chung trong `storage/<job_id>/`). Xoa vinh
@@ -480,10 +464,10 @@ cau don gian hoa flow) - gop toan bo vao 1 buoc upload duy nhat:**
   gia lap qua `soundfile`/`numpy`, KHONG can model TTS/ffmpeg that.
 
 **Cap nhat 2026-07-03 lan 2 (sau khi nguoi dung chay thu tren may dev that va
-danh gia chat luong giong doc "qua te") - doi TTS backend + tu don file:**
+danh gia chat luong giong doc "qua te") - doi TTS api + tu don file:**
 - **Doi tu MMS-TTS sang `edge-tts`:** xoa
-  `subtitle_pipeline/infrastructure/tts_mms.py`, them
-  `subtitle_pipeline/infrastructure/tts_edge.py` (`EdgeTTSSynthesizer`). Da
+  `pipeline/infrastructure/tts_mms.py`, them
+  `pipeline/infrastructure/tts_edge.py` (`EdgeTTSSynthesizer`). Da
   research (xem chi tiet trong docstring dau file `tts_edge.py`): MMS-TTS la
   VITS chat luong thap, phat am nhieu loi; `edge-tts` goi giong Azure Neural
   TTS THAT cua Microsoft (mien phi, khong can API key, qua tinh nang "Doc to"
@@ -498,7 +482,7 @@ danh gia chat luong giong doc "qua te") - doi TTS backend + tu don file:**
   `dub_and_export()` khong con nhan tham so `device` (edge-tts khong dung
   GPU/local model).
 - **Tu dong xoa file trung gian sau khi long tieng xong:** `dub_and_export()`
-  (`subtitle_pipeline/application/dub.py`) gio goi `shutil.rmtree(work_dir)`
+  (`pipeline/application/dub.py`) gio goi `shutil.rmtree(work_dir)`
   ngay sau khi mux video thanh cong - xoa toan bo `_work/` (audio trung gian
   cua buoc transcribe: `audio_16k.wav`, `audio_denoised.wav`, cac clip TTS
   tam trong `dub_<lang>_segments/`, track am thanh tam `dub_track_<lang>.wav`).
@@ -568,11 +552,11 @@ khi tai). Da xac nhan qua boi canh cheo (git log + git grep) ban CU
 `storage/browser_profile/`) KHONG con sot lai gi - chi co dung 1 ban tai
 video DUY NHAT (ban moi cua Codex) trong repo, khong bi lan giua 2 cach.
 Phat hien + sua 1 bug that do merge 2 nhanh khong dong bo:
-`frontend/src/lib/constants.ts` (`PIPELINE_STEPS`) thieu stage `"download"`
-ma backend (`app/jobs/stages.py` `PIPELINE_STAGES`, do Codex viet lai) da co
+`web/src/lib/constants.ts` (`PIPELINE_STEPS`) thieu stage `"download"`
+ma api (`worker/jobs/stages.py` `PIPELINE_STAGES`, do Codex viet lai) da co
 - hau qua: thanh tien do chi tiet hien SAI ten buoc ("Tach audio" thay vi
 "Tai video") luc job dang tai. Da them lai entry `download` vao
-`PIPELINE_STEPS` cho khop 1:1 voi backend (11 buoc ca 2 phia). Cung sua 1
+`PIPELINE_STEPS` cho khop 1:1 voi api (11 buoc ca 2 phia). Cung sua 1
 test cua Claude Code (`tests/test_pronunciation.py`) bi fail sau khi nguoi
 dung tu bo sung ~500 tu vao `pronunciation_glossary.json` (trong do co tu
 "Server" trung voi chuoi test mau "SQL server") - doi test dung glossary co
@@ -589,14 +573,14 @@ Streamlit roi thu theo muc "Viec can lam" ben duoi.
 
 Nguoi dung dua screenshot app "VietDub" lam tham chieu, yeu cau nang cap
 Upload thanh wizard 6 buoc voi tinh nang tuong ung. Da viet lai
-`app/pages/1_Upload.py` thanh 6 tab (`st.tabs` - ben hon fake-stepper khi
+`worker/pages/1_Upload.py` thanh 6 tab (`st.tabs` - ben hon fake-stepper khi
 Streamlit rerun); TOAN BO lua chon gom vao 1 dict `options` truyen cho
 `process_video_job(job_id, options)` va luu `job_config.json` vao thu muc
 job (trace + nut "Tao lai voi cau hinh nay" o Dashboard).
 
 **Buoc 1 - Nguon:**
 - Dan URL YouTube/Douyin/TikTok... thay vi phai upload file: adapter moi
-  `subtitle_pipeline/infrastructure/downloader_ytdlp.py` (goi
+  `pipeline/infrastructure/downloader_ytdlp.py` (goi
   `sys.executable -m yt_dlp` de chac dung venv; `--restrict-filenames`;
   chat luong "720p"/"best"). Tai trong WORKER (stage moi "download", them
   vao `PIPELINE_STAGES`); job tao voi `filename=URL` placeholder, worker
@@ -682,9 +666,9 @@ burn), `test_tts_voices.py` (catalog/rate/pitch), `test_audio_timing.py`
 5. Nhap bang thuat ngu 1-2 muc -> kiem tra term duoc giu dung trong ban
    dich (rui ro token bi NLLB dich - xem Buoc 3 o tren).
 
-## 6k. UI React + FastAPI backend (2026-07-03/04 - THAY THE Streamlit lam UI chinh)
+## 6k. UI React + FastAPI api (2026-07-03/04 - THAY THE Streamlit lam UI chinh)
 
-**Trang thai:** Code xong. `pytest` 91/91 pass (15 test backend moi), `ruff`
+**Trang thai:** Code xong. `pytest` 91/91 pass (15 test api moi), `ruff`
 sach, `npm run build` pass (tsc + vite), smoke test THAT tren Postgres:
 health/register/admin-login/meta-voices/admin-users deu OK. **CHUA test E2E
 flow tao job qua UI React** - xem "Viec can lam".
@@ -696,18 +680,18 @@ DAO NGUOC 2 quyet dinh cu: (1) "Streamlit xuyen suot, khong FastAPI", (2)
 **Cap nhat 2026-07-04 (cung ngay) - DA XOA HOAN TOAN Streamlit** (nguoi dung:
 "bỏ streamlit đi ko cần nữa, tối ưu toàn bộ cho source mới"), khong con giu
 lam legacy nhu du dinh ban dau - UI React da du dung de thay the hoan toan.
-Da xoa: `app/pages/` (1_Upload.py, 2_Dashboard.py, 3_Editor.py), `app/Home.py`,
-`app/ui.py` (chi con dung boi Streamlit, logic that da chuyen het sang
-`app/jobs/stages.py` tu truoc), `.streamlit/config.toml`. Bo dependency
+Da xoa: `worker/pages/` (1_Upload.py, 2_Dashboard.py, 3_Editor.py), `worker/Home.py`,
+`worker/ui.py` (chi con dung boi Streamlit, logic that da chuyen het sang
+`worker/jobs/stages.py` tu truoc), `.streamlit/config.toml`. Bo dependency
 `streamlit`, `pandas` (chi Editor.py dung) khoi `requirements.txt`. Bo 2 dong
-`per-file-ignores` E402 cho `app/Home.py`/`app/pages/*.py` trong
+`per-file-ignores` E402 cho `worker/Home.py`/`worker/pages/*.py` trong
 `pyproject.toml` (khong con file nao can ngoai le nay). Them job
-`frontend-build` (npm install + `npm run build`) vao `.github/workflows/ci.yml`
+`web-build` (npm install + `npm run build`) vao `.github/workflows/ci.yml`
 de CI cung xac nhan FE build duoc, khong chi BE. **91/91 pytest + ruff sach
 sau khi xoa** (xac nhan khong con gi phu thuoc code Streamlit cu).
 
 **Kien truc:**
-- **`backend/`** - FastAPI (`python -m uvicorn backend.main:app --port 8000`):
+- **`api/`** - FastAPI (`python -m uvicorn api.main:app --port 8000`):
   - `db.py` - session factory dung chung (lazy singleton, test override bang
     `set_session_factory`).
   - `security.py` - bcrypt + JWT (SESSION_SECRET_KEY). **Admin la tai khoan
@@ -723,13 +707,13 @@ sau khi xoa** (xac nhan khong con gi phu thuoc code Streamlit cu).
     chi admin thay. Sai chu tra 404 (khong lo thong tin).
   - Startup migration: `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS user_id`
     (khong can reset DB).
-- **DB**: them lai `User` + `Job.user_id` (nullable) vao `app/db/models.py`;
-  `app/users/repository.py` moi; `JobRepository.list_by_user` +
+- **DB**: them lai `User` + `Job.user_id` (nullable) vao `worker/db/models.py`;
+  `worker/users/repository.py` moi; `JobRepository.list_by_user` +
   `create(user_id=)`.
-- **`app/jobs/stages.py`** moi - PIPELINE_STAGES/stage_progress tach khoi
-  `app/ui.py` (von import streamlit) de backend dung duoc; `app/ui.py`
+- **`worker/jobs/stages.py`** moi - PIPELINE_STAGES/stage_progress tach khoi
+  `worker/ui.py` (von import streamlit) de api dung duoc; `worker/ui.py`
   re-export.
-- **`frontend/`** - Vite + React 18 + TypeScript + Tailwind +
+- **`web/`** - Vite + React 18 + TypeScript + Tailwind +
   react-router-dom + TanStack Query (Node 22 co san tren may):
   - `/` Landing (hero + 6 tinh nang + 3 buoc + CTA, theme cam/kem kieu
     VietDub), `/login`, `/register`.
@@ -742,14 +726,14 @@ sau khi xoa** (xac nhan khong con gi phu thuoc code Streamlit cu).
   - `/admin` - bang users (xoa kem job) + toan bo jobs.
   - Dev: Vite proxy `/api` -> localhost:8000 (khong vuong CORS).
 - Dependency moi: fastapi, uvicorn[standard], python-multipart,
-  pydantic[email], pyjwt, bcrypt (requirements.txt); frontend/package.json
+  pydantic[email], pyjwt, bcrypt (requirements.txt); web/package.json
   rieng.
 
 **Cach chay day du (4 tien trinh):**
 1. `docker compose up -d` (Postgres 15432 + Redis 6379)
-2. `python -m celery -A app.jobs.celery_app worker --loglevel=info`
-3. `python -m uvicorn backend.main:app --port 8000`
-4. `cd frontend && npm run dev` -> mo http://localhost:5173
+2. `python -m celery -A worker.jobs.celery_app worker --loglevel=info`
+3. `python -m uvicorn api.main:app --port 8000`
+4. `cd web && npm run dev` -> mo http://localhost:5173
 
 **Viec can lam (E2E qua UI React):** dang ky tai khoan -> wizard tao job tu
 URL YouTube che do 60s -> xem progress tren Studio -> mo chi tiet xem video
@@ -766,8 +750,8 @@ bo job, thu xoa user. Bao loi de sua tiep.
   (Phase 2):** Faster-Whisper co san `vad_filter=True` (dung Silero VAD noi bo)
   de loc khoang lang, nen mot adapter VAD doc lap se trung lap chuc nang ma
   khong co noi tieu thu ket qua ro rang trong luong chinh. Script
-  `phase1_feasibility/step03_vad.py` van giu de do hieu nang rieng, nhung
-  `subtitle_pipeline/` khong co adapter/port VAD rieng.
+  `feasibility/step03_vad.py` van giu de do hieu nang rieng, nhung
+  `pipeline/` khong co adapter/port VAD rieng.
 - **2026-07-01 - Tiep tuc Phase 3 truoc khi Phase 1/2 duoc xac minh tren may
   that:** Nguoi dung yeu cau lam tiep, chua can push len GitHub. Rui ro Phase 2
   (OOM, model size) van con nguyen, gio them ca rui ro Phase 3 (Postgres/Redis/
@@ -779,16 +763,16 @@ bo job, thu xoa user. Bao loi de sua tiep.
   diem nay. Chua chay `ruff check`/`ruff format` tren code Phase 1-3 da viet
   truoc do (sandbox khong co Python that) - can chay 1 lan tren may dev that de
   chuan hoa toan bo code cu (xem muc 8).
-- **2026-07-02 - Refactor toan bo phase1_feasibility de xoa trung lap voi
-  subtitle_pipeline (Phase 2):** Doi ten file (`0X_ten.py` -> `stepNN_ten.py`,
+- **2026-07-02 - Refactor toan bo feasibility de xoa trung lap voi
+  pipeline (Phase 2):** Doi ten file (`0X_ten.py` -> `stepNN_ten.py`,
   `00_env_check.py` -> `check_env.py`, lam phang `utils/measure.py` ->
   `measure.py`) va sua `step01/02/04/05/06` de goi TRUC TIEP adapter trong
-  `subtitle_pipeline/infrastructure/` thay vi tu viet lai logic goi thu vien AI.
+  `pipeline/infrastructure/` thay vi tu viet lai logic goi thu vien AI.
   Ly do: truoc do Phase 1 va Phase 2 co 2 ban song song cua cung 1 logic (goi
   FFmpeg/DeepFilterNet3/Faster-Whisper/WhisperX/pyannote), de lech nhau theo
   thoi gian va vi pham DRY; sau khi sua, so lieu VRAM/thoi gian do o Phase 1
   phan anh dung hieu nang cua code se chay that trong production. `step03_vad`
-  khong doi vi khong co adapter VAD tuong duong trong subtitle_pipeline. Chua
+  khong doi vi khong co adapter VAD tuong duong trong pipeline. Chua
   chay thu lai tren may dev that sau refactor nay (xem muc 8).
 - **2026-07-02 - Viet toan bo Phase 4-8 trong 1 lan, theo yeu cau ro rang cua
   nguoi dung** ("hoan thanh not du an luon hoan thien toan bo va san sang test
@@ -820,8 +804,8 @@ bo job, thu xoa user. Bao loi de sua tiep.
   usage/goi cuoc (Phase 7):** nguoi dung xac nhan "khong thuong mai nua chi
   la project ca nhan... bo luon phan limit di". Da xoa khoi kiem tra
   `subscription`/`plan_info`/`minutes_used` + `st.stop()` chan upload trong
-  `app/pages/1_Upload.py`. **Khong xoa** `app/billing/` hay
-  `app/pages/4_Billing.py` (van giu de xem usage tham khao, chi bo phan chan
+  `worker/pages/1_Upload.py`. **Khong xoa** `worker/billing/` hay
+  `worker/pages/4_Billing.py` (van giu de xem usage tham khao, chi bo phan chan
   cung). Ly do quyet dinh nay lien quan truc tiep: vi khong con rang buoc
   thuong mai nen viec chon model TTS non-commercial license (MMS-TTS,
   CC-BY-NC) o tren cung khong con la van de.
@@ -831,10 +815,10 @@ bo job, thu xoa user. Bao loi de sua tiep.
   cac kieu... xoa luon phan billing va cach tinh toan thoi gian". Khac voi
   quyet dinh 2026-07-03 phia tren (chi tat gioi han, giu code billing lai),
   lan nay xoa SACH:
-  - `app/auth/` (`security.py`, `repository.py`, `streamlit_helpers.py`),
+  - `worker/auth/` (`security.py`, `repository.py`, `streamlit_helpers.py`),
     model `User`.
-  - `app/billing/` (`plans.py`, `usage.py`, `repository.py`),
-    `app/pages/4_Billing.py`, model `PlanTier`/`Subscription`.
+  - `worker/billing/` (`plans.py`, `usage.py`, `repository.py`),
+    `worker/pages/4_Billing.py`, model `PlanTier`/`Subscription`.
   - Cot `Job.user_id` (khong con khai niem "chu so huu job" - moi job hien
     thi cho tat ca, tool 1 nguoi dung).
   - Dependency `bcrypt`, `pyjwt`, `extra-streamlit-components`; bien env
@@ -904,13 +888,13 @@ lien tuc). Nguoi dung yeu cau tim cach "manh hon, tien hon".
   nao. YouTube khong co van de nay (khong TODO tuong tu trong code), nen giai
   phap Playwright van co gia tri day du cho YouTube.
 
-**Kien truc (`subtitle_pipeline/infrastructure/cookie_refresh.py`):**
+**Kien truc (`pipeline/infrastructure/cookie_refresh.py`):**
 - 2 CHE DO tach rieng vi ly do khac nhau:
   - `setup_login_session(profile_dir)`: mo Chromium THAT (khong an,
     `headless=False`) qua `launch_persistent_context` - nguoi dung tu dang
     nhap YouTube/Douyin 1 LAN trong do (co the giai CAPTCHA neu co), nhan
     Enter trong terminal de luu profile + dong trinh duyet. CHI chay duoc tu
-    terminal (CLI), KHONG the goi tu backend API vi server khong co man
+    terminal (CLI), KHONG the goi tu api API vi server khong co man
     hinh cho nguoi dung tuong tac.
   - `refresh_cookies(output_path, profile_dir)`: mo LAI CUNG profile o che
     do AN (`headless=True`) - tai su dung session dang nhap da luu, khong
@@ -921,15 +905,15 @@ lien tuc). Nguoi dung yeu cau tim cach "manh hon, tien hon".
   (`expires=-1`) duoc gia han 1 nam thay vi ghi -1 (Netscape/yt-dlp coi gia
   tri am la het han, se bo qua). Test rieng trong `tests/test_cookie_refresh.py`
   (khong can Playwright/trinh duyet that).
-- CLI: `python -m subtitle_pipeline.infrastructure.cookie_refresh --setup`
+- CLI: `python -m pipeline.infrastructure.cookie_refresh --setup`
   (chay 1 lan dau) / `--refresh` (chay lai bat cu khi nao can, doc
   `YTDLP_COOKIES_FILE` tu env de biet ghi vao dau).
-- **`backend/routers/admin.py`**: them `POST /admin/refresh-cookies`
+- **`api/routers/admin.py`**: them `POST /admin/refresh-cookies`
   (admin-only, `require_admin`) - goi `refresh_cookies()` qua
   `asyncio.to_thread` (Playwright sync API se chan/block, khong duoc goi
   truc tiep trong async route handler). Loi ro rang neu chua chay `--setup`
   lan nao (browser profile chua ton tai).
-- **`frontend/src/pages/Admin.tsx`**: them nut "Lam moi cookie" + ghi chu ro
+- **`web/src/pages/Admin.tsx`**: them nut "Lam moi cookie" + ghi chu ro
   rang Douyin chua tai duoc du co cookie moi (tranh nguoi dung ky vong sai).
 - Dependency moi: `playwright>=1.47.0` (them vao `requirements.txt`). **CAN
   CHAY THEM 1 LAN SAU KHI `pip install`:**
@@ -955,7 +939,7 @@ can deploy that.
 **Viec nguoi dung can lam:**
 1. `pip install -r requirements.txt` (them `playwright`).
 2. `python -m playwright install chromium` (1 lan).
-3. `python -m subtitle_pipeline.infrastructure.cookie_refresh --setup` -
+3. `python -m pipeline.infrastructure.cookie_refresh --setup` -
    dang nhap YouTube (va Douyin neu muon, du hien chua tai duoc) trong cua
    so trinh duyet mo ra, nhan Enter trong terminal khi xong.
 4. Vao trang Admin (dang nhap admin@local...), bam "Lam moi cookie" bat cu
@@ -976,11 +960,11 @@ nay** (ghi ro trong README, `friendly_yt_dlp_error` khong co nhanh nao cho
 Da khoi phuc + noi vao dung cau truc MOI cua `downloader_ytdlp.py` (khac
 ban cu o cho: khong con Douyin trong scope, dung `analyze_video()`/
 `download_video()` thay vi ham cu):
-- `subtitle_pipeline/infrastructure/cookie_refresh.py` - khoi phuc gan
+- `pipeline/infrastructure/cookie_refresh.py` - khoi phuc gan
   nguyen ban tu git history (commit `d3d4a1b`), CHI bo Douyin khoi
   `DEFAULT_SITES` (chi con `{"youtube": "https://www.youtube.com/"}` - dung
   huong dan setup/refresh, dinh dang Netscape cookie giu nguyen).
-- `subtitle_pipeline/infrastructure/downloader_ytdlp.py`: them ham moi
+- `pipeline/infrastructure/downloader_ytdlp.py`: them ham moi
   `_cookie_options()` (doc `YTDLP_COOKIES_FILE` tu env, tra ve
   `{"cookiefile": path}` neu file ton tai, nguoc lai `{}`) va spread vao
   dict `opts` cua CA `analyze_video()` lan `download_video()` (repo tham
@@ -988,9 +972,9 @@ ban cu o cho: khong con Douyin trong scope, dung `analyze_video()`/
   moi trong `friendly_yt_dlp_error()` nhan dien "sign in to confirm"/"not a
   bot"/"fresh cookies"/"cookies are needed" -> tra ve thong bao huong dan
   bam "Lam moi cookie" trong Admin.
-- `backend/routers/admin.py`: khoi phuc `POST /admin/refresh-cookies`
+- `api/routers/admin.py`: khoi phuc `POST /admin/refresh-cookies`
   (giong het logic cu, goi `refresh_cookies()` qua `asyncio.to_thread`).
-- `frontend/src/pages/Admin.tsx`: khoi phuc section "Cookie tải video
+- `web/src/pages/Admin.tsx`: khoi phuc section "Cookie tải video
   (YouTube)" + nut "Làm mới cookie" (bo cau chu ve Douyin khoi mo ta, chi
   con nhac YouTube).
 - `requirements.txt`: them lai `playwright>=1.47.0`. `.env.example`: them
@@ -1000,12 +984,12 @@ ban cu o cho: khong con Douyin trong scope, dung `analyze_video()`/
   `_write_netscape_file`); them moi `tests/test_downloader.py` (module nay
   TRUOC DAY CHUA CO TEST NAO - kiem tra `_cookie_options()` + nhanh bot-check
   moi trong `friendly_yt_dlp_error()`); them 3 test cho endpoint
-  `/admin/refresh-cookies` trong `tests/test_backend_api.py`.
+  `/admin/refresh-cookies` trong `tests/test_api_api.py`.
 114/114 pytest pass, ruff sach, `npm run build` pass. **Chua chay
 `--setup`/`--refresh` that voi Chromium that trong phien nay** (sandbox
 khong the mo trinh duyet that) - nguoi dung can tu chay
 `pip install -r requirements.txt` + `python -m playwright install chromium`
-+ `python -m subtitle_pipeline.infrastructure.cookie_refresh --setup` roi
++ `python -m pipeline.infrastructure.cookie_refresh --setup` roi
 thu tai lai 1 video YouTube tung bi chan de xac nhan het loi.
 
 ## 6m. Bang phat am rieng cho giong doc long tieng (2026-07-05)
@@ -1028,12 +1012,12 @@ la "ét quy eo". Da hoi lai nguoi dung 2 diem truoc khi code:
   uu tien gia tri tren web truoc, thieu thi rot ve JSON mac dinh.
 
 **Kien truc:**
-- `subtitle_pipeline/infrastructure/pronunciation_glossary.json` - file JSON
+- `pipeline/infrastructure/pronunciation_glossary.json` - file JSON
   mac dinh, cau truc `{"<ma_ngon_ngu>": {"<tu>": "<cach_doc>"}}`. Hien chi co
   du lieu cho `"vi"` (nguoi dung xac nhan lam tieng Viet truoc), seed 1 muc
   vi du `"SQL": "ét quy eo"` - nguoi dung se tu bo sung them qua thoi gian
   bang cach sua truc tiep file nay (khong can code/deploy lai).
-- `subtitle_pipeline/application/pronunciation.py` (module moi):
+- `pipeline/application/pronunciation.py` (module moi):
   `load_default_pronunciation(language)` doc file JSON tren;
   `parse_pronunciation_overrides(text)` parse textarea nguoi dung nhap rieng
   cho 1 job (cung format `tu = cach doc` voi bang thuat ngu dich, nhung la
@@ -1042,19 +1026,19 @@ la "ét quy eo". Da hoi lai nguoi dung 2 diem truoc khi code:
   neu trung tu, khong phan biet hoa thuong); `apply_pronunciation(text,
   glossary)` thay tu khop nguyen tu (tu dai thay truoc tu ngan, giong
   logic `glossary.py`).
-- `subtitle_pipeline/application/dub.py`: `DubRenderOptions` them field
+- `pipeline/application/dub.py`: `DubRenderOptions` them field
   `pronunciation: dict[str, str]`. Trong `dub_and_export()`, goi
   `apply_pronunciation()` ngay sau `_clean_text_for_speech()` - TRUOC khi
   dua text vao `tts.synthesize()` - nen CHI anh huong audio, cac file phu de
   xuat ra (`translate_and_export()` trong `translate.py`) hoan toan khong
   doi.
-- `app/jobs/tasks.py`: `_build_dub_options()` (flow chinh tu wizard Upload)
+- `worker/jobs/tasks.py`: `_build_dub_options()` (flow chinh tu wizard Upload)
   goi `resolve_pronunciation_glossary(target_language, translation.get(
   "pronunciation", ""))` truyen vao `DubRenderOptions`. `dub_job` (Celery
   task rieng cua Editor, khong co o nhap override) ap dung it nhat bang JSON
   mac dinh qua `resolve_pronunciation_glossary(target_language)`.
-- Frontend (`frontend/src/lib/types.ts`): `JobOptions.translation` them field
-  `pronunciation: string` (mac dinh rong). `frontend/src/pages/NewJob.tsx`
+- Frontend (`web/src/lib/types.ts`): `JobOptions.translation` them field
+  `pronunciation: string` (mac dinh rong). `web/src/pages/NewJob.tsx`
   Buoc 3 them:
   - 1 dong thong tin dau trang hien ro dang dich/long tieng sang ngon ngu
     nao (doc tu `dubbing.target_language` da chon o Buoc 2) + nut nhay
@@ -1062,7 +1046,7 @@ la "ét quy eo". Da hoi lai nguoi dung 2 diem truoc khi code:
     viec "khong thay cho chon ngon ngu" o buoc nay. Neu long tieng dang tat,
     hien canh bao buoc nay khong co tac dung (vi `process_video_job` chi goi
     `translate_and_export`/`dub_and_export` khi `dubbing.enabled=true`, xem
-    `app/jobs/tasks.py`).
+    `worker/jobs/tasks.py`).
   - Textarea moi "Bang phat am cho giong long tieng" (mau `SQL = ét quy eo`)
     ngay duoi o "Bang thuat ngu" hien co, cung dinh dang `tu = cach doc`.
   - The tom tat o Buoc 6 (Xem lai) them dong dem so muc bang phat am rieng
@@ -1091,13 +1075,13 @@ tai co chu ky, khong can dang nhap web) hoac qua email (link tai truc tiep,
 khac voi email web dung cho nguoi dung DA CO tai khoan).
 
 **Kien truc:**
-- `app/jobs/service.py` (module moi) - `create_download_job()`: tao 1 job
+- `worker/jobs/service.py` (module moi) - `create_download_job()`: tao 1 job
   tai-tu-URL y het schema wizard web (`default_download_job_options()`),
   ghi `job_config.json`, enqueue `process_video_job` Celery task - dung
-  chung PIPELINE voi web, chi khac o CHO TAO job (khong qua backend API/
+  chung PIPELINE voi web, chi khac o CHO TAO job (khong qua api API/
   React) va them field tuy chon `options["telegram"]` (`chat_id`,
   `notify_email`) de Celery task biet co can bao Telegram khi xong khong.
-- `app/telegram_bot/` (module moi, package rieng):
+- `worker/telegram_bot/` (module moi, package rieng):
   - `client.py` - `TelegramClient`, goi thang Telegram Bot API qua
     `urllib.request` (KHONG them dependency python-telegram-bot nao ca).
   - `bot.py` - `TelegramJobBot.run_forever()`: vong lap polling
@@ -1107,22 +1091,22 @@ khac voi email web dung cho nguoi dung DA CO tai khoan).
     (de trong = AI CUNG dung duoc bot - luu y neu may chay AI pipeline
     nang, nen dien gioi han de tranh nguoi la lam ton GPU).
   - `notifier.py` - `notify_telegram_job_done()`/`notify_telegram_job_failed()`,
-    goi tu `app/jobs/tasks.py` (hook nho o cuoi `process_video_job`, boc
+    goi tu `worker/jobs/tasks.py` (hook nho o cuoi `process_video_job`, boc
     trong `with suppress(Exception)` nen KHONG anh huong job web binh
     thuong neu Telegram loi/chua cau hinh - chi kich hoat khi
     `options["telegram"]` co mat).
-- `backend/share_links.py` (module moi) - `create_file_share_token()`/
+- `api/share_links.py` (module moi) - `create_file_share_token()`/
   `verify_file_share_token()`: token HMAC-SHA256 tu ky (base64url
   payload + base64url chu ky, KHONG dung JWT vi khong can decode noi
   dung, chi can verify), mang theo `job_id`/`filename`/`exp` - cho phep
   TAI 1 FILE CU THE ma khong can dang nhap web (khac han token JWT dang
   dung cho `AuthUser`). Het han theo `PUBLIC_LINK_TTL_SECONDS` (mac dinh
   7 ngay).
-- `backend/routers/public.py` (router moi, KHONG qua `get_current_user`) -
+- `api/routers/public.py` (router moi, KHONG qua `get_current_user`) -
   `GET /api/public/jobs/{job_id}/files/{name}?token=...`: verify token roi
   serve file, chong path traversal giong het `jobs.py::download_file`
   (chi khop file la con truc tiep cua `output_dir`).
-- `backend/email_sender.py` them ham `send_direct_download_email()` (khac
+- `api/email_sender.py` them ham `send_direct_download_email()` (khac
   `send_job_result_email()` da co - ham cu gui link toi trang job yeu cau
   dang nhap, ham moi gui thang link tai da ky, dung cho nguoi dung Telegram
   khong nhat thiet co tai khoan web).
@@ -1138,12 +1122,12 @@ khac voi email web dung cho nguoi dung DA CO tai khoan).
 - **Ro ri ket noi DB (quan trong nhat):** `create_download_job()` ban dau
   goi `JobRepository()` khong tham so -> mac dinh goi `make_session_factory()`
   MOI LAN GOI, tao engine + connection pool MOI + chay lai `create_all()`
-  (chinh `backend/db.py` da canh bao dieu nay "rat nang neu lap lai"). Vi
+  (chinh `api/db.py` da canh bao dieu nay "rat nang neu lap lai"). Vi
   bot Telegram song lau trong 1 vong lap polling va goi ham nay moi khi co
   nguoi xac nhan tai video, moi job se ro ri 1 pool ket noi Postgres khong
   bao gio dong - co the can Postgres `max_connections` neu dung nhieu. Da
-  sua: them tham so `job_repo_factory=job_repo` (dung lai `backend.db.job_repo`
-  - CUNG 1 session factory singleton ma FastAPI backend dang dung).
+  sua: them tham so `job_repo_factory=job_repo` (dung lai `api.db.job_repo`
+  - CUNG 1 session factory singleton ma FastAPI api dang dung).
 - Dead-code + kho doc: `bot.py::run_forever()` dung ternary-lam-statement
   de gui tin nhan khoi dong, kem 1 nhanh fallback `or self.allowed_chat_hint()`
   KHONG BAO GIO chay toi (vi dieu kien ngoai da dam bao truoc do). Da doi
@@ -1152,7 +1136,7 @@ khac voi email web dung cho nguoi dung DA CO tai khoan).
 - `tests/test_telegram_job_service.py` cap nhat theo tham so
   `job_repo_factory` moi (truoc do monkeypatch thang class `JobRepository`).
 
-**Da xac nhan KHONG dong den:** flow tao job qua web (`backend/routers/jobs.py`)
+**Da xac nhan KHONG dong den:** flow tao job qua web (`api/routers/jobs.py`)
 hoan toan khong doi - `options["telegram"]` la field tuy chon, job web binh
 thuong khong co field nay nen `notify_telegram_job_done()` return ngay o
 dong dau (`if not chat_id: return`).
@@ -1185,9 +1169,9 @@ LLM, verify end-to-end) va chon **lam lai trang Sua phu de** - tinh nang nay
 bi mat khi xoa Streamlit (2026-07-04, xem muc 8 cu) va chua duoc port sang
 React.
 
-**Kien truc (dua theo `app/pages/3_Editor.py` cu, xem lai qua
-`git show becda70:app/pages/3_Editor.py` - commit truoc khi xoa):**
-- **Backend (`backend/routers/jobs.py`)** - 5 route moi tren `/jobs`:
+**Kien truc (dua theo `worker/pages/3_Editor.py` cu, xem lai qua
+`git show becda70:worker/pages/3_Editor.py` - commit truoc khi xoa):**
+- **Backend (`api/routers/jobs.py`)** - 5 route moi tren `/jobs`:
   - `GET /{id}/subtitles/{language}` - doc `{stem}.json` (language="goc")
     hoac `{stem}.{language}.json` (ban da dich), tra ve list segment.
   - `PUT /{id}/subtitles/{language}` - nhan list segment da sua, ghi de CA 5
@@ -1202,9 +1186,9 @@ React.
     KHONG nam trong `output_dir` nen khong xuat hien qua `/files` hien co) -
     dung cho `<video>` xem lai khi sua timing, cung ho tro token qua query
     (`get_current_user` da ho tro san, khong can sua `security.py`).
-  - Schema moi trong `backend/schemas.py`: `SubtitleSegmentOut`,
+  - Schema moi trong `api/schemas.py`: `SubtitleSegmentOut`,
     `UpdateSubtitlesIn`, `TranslateJobIn`, `DubJobIn`.
-- **Frontend (`frontend/src/pages/Editor.tsx`, route moi
+- **Frontend (`web/src/pages/Editor.tsx`, route moi
   `/studio/jobs/:id/edit`)** - 3 tab giong cau truc Editor Streamlit cu:
   - **Chinh sua phu de:** chon ngon ngu (tu `files.subtitles` - danh sach
     nhom phu de co san tra ve boi `/jobs/{id}/files`), video/audio canh bang
@@ -1218,21 +1202,21 @@ React.
   - **Long tieng lai:** chon ngon ngu + giong (tu `/meta/voices/{lang}`,
     dropdown rong = mac dinh) + checkbox "Giu tieng goc giam 70%", nut goi
     `POST /dub`.
-  - `frontend/src/lib/api.ts` them `put()` (chua co truoc do, chi co
+  - `web/src/lib/api.ts` them `put()` (chua co truoc do, chi co
     get/post/postForm/del) va `originalUrl()` (cung mau `fileUrl()`, tro
     `/jobs/{id}/original`).
-  - `frontend/src/lib/types.ts` them `SubtitleSegment`.
+  - `web/src/lib/types.ts` them `SubtitleSegment`.
   - `JobDetail.tsx` them nut "Sua phu de" (o ca 2 nhanh: co video ket qua LAN
     truong hop job DONE nhung chua co video dubbed - vd. chi bat phu de,
     khong bat long tieng).
-- Test moi trong `tests/test_backend_api.py` (8 test): doc/sua subtitles
+- Test moi trong `tests/test_api_api.py` (8 test): doc/sua subtitles
   (thanh cong + 404 khi thieu ngon ngu), dich/long tieng (enqueue task khi
   job DONE + tu choi 400 khi chua DONE), tai file goc.
 
 **Khac voi ban Streamlit cu (co y, khong phai thieu sot):**
 - Khong dung bang/grid keo-sua-hang-loat (`st.data_editor` co
   `num_rows="dynamic"`) - moi segment la 1 khoi form rieng, phu hop web
-  thuan (khong co thu vien data-grid nao trong `frontend/package.json`).
+  thuan (khong co thu vien data-grid nao trong `web/package.json`).
   Neu video co RAT nhieu segment (video dai), UX nay se cham hon - danh gia
   lai neu nguoi dung phan nan, luc do co the can them 1 thu vien
   table/grid (vd. TanStack Table) hoac ao hoa danh sach (virtualization).
@@ -1308,51 +1292,51 @@ lai o day de tra cuu sau):**
    cau moi - xac nhan qua `soundfile` audio dau ra hop le (RMS ~0.1, khong
    im lang/khong loi). Toc do CPU: ~30s cho 3.6s audio (~8x cham hon thoi
    gian thuc) - QUA CHAM de dung that tren CPU, nhung tren GPU CUDA that
-   (RTX 4050), thu vien tu chuyen backend PyTorch (device="auto") nhanh hon
+   (RTX 4050), thu vien tu chuyen api PyTorch (device="auto") nhanh hon
    nhieu - **CHUA do toc do thuc te tren GPU that**.
 5. Test rieng `VieNeuCloneSynthesizer` (class adapter chinh thuc, khong
    phai script spike) - xac nhan chay dung toi ngay truoc buoc ffmpeg
    resample cuoi (khong co ffmpeg trong sandbox nay).
 
 **Kien truc:**
-- `subtitle_pipeline/infrastructure/tts_vieneu.py` (moi) - `VieNeuCloneSynthesizer`
+- `pipeline/infrastructure/tts_vieneu.py` (moi) - `VieNeuCloneSynthesizer`
   (VoiceSynthesizer Protocol, giong `EdgeTTSSynthesizer`): `__enter__` load
   model + `encode_reference()` MOT LAN (khong phai moi segment), `synthesize()`
   goi `infer(text, voice=<speaker_emb+codes da cache>)` roi ghi wav + ffmpeg
   resample ve 24kHz mono (khop `tts_edge.OUTPUT_SAMPLE_RATE`). Ham thuan
-  `probe_reference_seconds()` do do dai audio (dung o backend de tu choi
+  `probe_reference_seconds()` do do dai audio (dung o api de tu choi
   mau qua ngan).
-- `subtitle_pipeline/application/dub.py`: `DubRenderOptions` them field
+- `pipeline/application/dub.py`: `DubRenderOptions` them field
   `custom_voice_ref_audio: Path | None`. Neu dat, `dub_and_export()` dung
   **1 `VieNeuCloneSynthesizer` DUY NHAT cho CA VIDEO** (bo qua hoan toan
   `_build_speaker_voice_map`/nhieu-giong-theo-nguoi-noi va
   `voice`/`rate_percent`/`pitch_hz` cua edge-tts) - pham vi v1 CHUA ho tro
   nhieu giong clone khac nhau cho nhieu nguoi noi trong 1 video (ghi nhan
   o muc 8 neu can nang cap sau).
-- `app/db/models.py`: model moi `CustomVoice` (id, user_id, name,
+- `worker/db/models.py`: model moi `CustomVoice` (id, user_id, name,
   ref_audio_path, created_at) - KHONG luu speaker embedding (numpy array),
   `VieNeuCloneSynthesizer` tu ma hoa lai tu file moi lan dung (1 lan/job,
   khong phai 1 lan/segment) de tranh serialize numpy array qua Celery.
   Bang tao tu dong qua `create_all()` (khong can ALTER/reset DB nhu khi them
   `Job.user_id` truoc day).
-- `app/voices/repository.py` (moi) - `CustomVoiceRepository`, cung mau
-  `JobRepository`/`UserRepository`. `backend/db.py` them `custom_voice_repo()`.
-- `backend/routers/voices.py` (moi, `/api/voices`): `POST` (multipart
+- `worker/voices/repository.py` (moi) - `CustomVoiceRepository`, cung mau
+  `JobRepository`/`UserRepository`. `api/db.py` them `custom_voice_repo()`.
+- `api/routers/voices.py` (moi, `/api/voices`): `POST` (multipart
   name+file, ffmpeg transcode ve wav 24kHz, tu choi neu `probe_reference_seconds
   < MIN_REFERENCE_SECONDS` (3s)), `GET` (list theo user), `DELETE` (xoa DB
   + file, kiem tra chu so huu). Ham `get_owned_voice()` export de
-  `backend/routers/jobs.py` tai su dung (kiem tra quyen truoc khi enqueue
+  `api/routers/jobs.py` tai su dung (kiem tra quyen truoc khi enqueue
   job dung custom voice).
-- `backend/routers/jobs.py`: `_create_job_from_options()` (wizard) va
+- `api/routers/jobs.py`: `_create_job_from_options()` (wizard) va
   `POST /{id}/dub` (Editor) deu kiem tra `custom_voice_id` thuoc dung user
   truoc khi enqueue (tra 404 neu khong phai chu, giong pattern `_get_owned_job`).
   `DubJobIn` them field `custom_voice_id`.
-- `app/jobs/tasks.py`: ham moi `_resolve_custom_voice_ref_audio()` (doc
+- `worker/jobs/tasks.py`: ham moi `_resolve_custom_voice_ref_audio()` (doc
   `ref_audio_path` tu DB qua `CustomVoiceRepository`, tra `None` neu giong
   da bi xoa - roi ve edge-tts thay vi lam fail job). Dung trong ca
   `_build_dub_options()` (wizard, doc `dubbing.custom_voice_id` tu options)
   lan `dub_job` Celery task (Editor, them tham so `custom_voice_id`).
-- Frontend: trang moi `frontend/src/pages/Voices.tsx` (route `/voices`,
+- Frontend: trang moi `web/src/pages/Voices.tsx` (route `/voices`,
   link tu NavBar) - ghi am truc tiep qua `MediaRecorder` (API trinh duyet
   chuan, khong them thu vien) VOI 1 doan van mau goi y san de doc, HOAC tai
   file audio co san len; danh sach giong da tao + nut xoa. `NewJob.tsx`
@@ -1363,7 +1347,7 @@ lai o day de tra cuu sau):**
 **Test moi:** `tests/test_tts_vieneu.py` (`probe_reference_seconds` - ham
 thuan, khong can model that). `tests/test_dub.py`: 1 test moi xac nhan
 `dub_and_export` dung 1 synthesizer clone duy nhat cho ca video du nhieu
-nguoi noi (khac han co che xoay vong giong cua edge-tts). `tests/test_backend_api.py`:
+nguoi noi (khac han co che xoay vong giong cua edge-tts). `tests/test_api_api.py`:
 9 test moi (`POST/GET/DELETE /voices`, tu choi mau qua ngan, phan quyen so
 huu giong o ca 2 duong tao job wizard lan `/dub` cua Editor) - stub
 `subprocess.run`/`probe_reference_seconds` (khong goi ffmpeg/audio that
@@ -1434,7 +1418,7 @@ nhan tu 2026-07-03 lan 8 khi bo hoan toan atempo):
 
 **2. Dich theo ngu canh bang Google Gemini (LLM)** (lam duoc dieu ghi "can
 LLM - viec sau" o muc 6j):
-- Adapter moi `subtitle_pipeline/infrastructure/translator_gemini.py`
+- Adapter moi `pipeline/infrastructure/translator_gemini.py`
   (`GeminiTranslator`) - cung interface context-manager + `translate()` voi
   `NLLBTranslator`. Goi REST `generateContent` truc tiep qua urllib stdlib
   (KHONG them dependency - cung ly do email_sender dung smtplib). Dich theo
@@ -1454,27 +1438,50 @@ LLM - viec sau" o muc 6j):
   job dich de xac nhan prompt/parse hoat dong voi response that.
 
 **3. Alembic migration cho DB** (het canh "doi schema la phai reset DB"):
-- File moi: `alembic.ini` (goc repo), `migrations/env.py` (doc DATABASE_URL
-  tu .env/bien moi truong, dung chung nguon voi app/db/session.py),
-  `migrations/versions/0001_initial_schema.py` - baseline co GUARD inspector:
-  DB moi tinh thi tao du 3 bang (users/jobs/custom_voices), DB co san do
-  `create_all()` tao truoc day thi bo qua bang da co + chi va cot
-  `jobs.user_id` neu thieu. Tu revision 0002 tro di viet ALTER binh thuong
-  (`python -m alembic revision -m "..." --autogenerate`).
-- `backend/main.py`: `_ensure_schema()` (ALTER tay `user_id`) thay bang
-  `_run_migrations()` goi `alembic upgrade head` luc khoi dong - van nuot
-  loi co chu dich (test/sandbox khong co Postgres van khoi dong duoc).
+- File moi: `alembic.ini` (goc repo), `database_migrations/env.py` (doc DATABASE_URL
+  tu .env/bien moi truong, dung chung nguon voi worker/db/database.py),
+  `database_migrations/versions/0001_initial_schema.py` - baseline tao hai
+  bang `jobs`/`custom_voices`, bo qua bang da co de nhan nuoi DB cu. Revision
+  `0002_remove_auth` xoa schema ownership/auth legacy; revision tiep theo viet
+  ALTER binh thuong (`python -m alembic revision -m "..." --autogenerate`).
+- `api/main.py`: `_ensure_schema()` (ALTER tay `user_id`) thay bang
+  `_run_database_migrations()` goi `alembic upgrade head` luc khoi dong.
+  Migration loi thi startup loi ro rang, khong bo qua.
 - `make_session_factory()` GIU NGUYEN `create_all` (test SQLite + tien dev),
   khong xung dot vi baseline co guard.
 - `requirements.txt`: them `alembic>=1.13.0`.
-- Test moi `tests/test_migrations.py` (4 test chay THAT upgrade tren SQLite
+- Test `tests/test_migrations.py` (5 test chay THAT upgrade tren SQLite
   file tam: DB moi / chay 2 lan idempotent / nhan nuoi DB create_all / doi
-  chieu cot migration khop cot ORM). **CHUA chay tren Postgres that** - lan
-  dau chay backend tren may dev, xem log khoi dong xac nhan
-  `alembic_version` duoc tao trong DB (khong can lam gi them, tu dong).
+  chieu cot migration khop cot ORM / xoa auth schema legacy).
+
+**Cap nhat 2026-11-20 - chay local cho nguoi khong chuyen:**
+- `worker/db/database.py` mac dinh dung `storage/app.db` (SQLite); giu lai DB
+  app.db da co san, khong tao DB moi va khong can cai database server.
+  `make_session_factory()` khong con bat loi ket noi roi am tham chuyen DB;
+  DB URL sai se bao loi ro rang.
+- `worker/jobs/celery_app.py` dung queue/result backend SQLite tai
+  `storage/celery.db` neu khong co Redis hoac Redis localhost khong ket noi
+  duoc. Docker Compose (neu khoi dong duoc) cung cap PostgreSQL + Redis.
+- `pipeline/pipeline_settings.py` tu chon CPU neu CUDA khong co/khoi dong
+  duoc, ke ca `.env` cu van yeu cau CUDA; compute type Whisper duoc chuyen
+  sang `int8` tren CPU.
+- `INFRA_MODE=auto` la mac dinh: Start Project thu Docker, neu khong dung
+  duoc thi chuyen sang SQLite. `local` luon dung SQLite; `docker` bat buoc
+  Docker; `custom` dung `DATABASE_URL`/`REDIS_URL` do nguoi dung dat.
+- `Start Project.bat` tao `.env` neu thieu, tao `.venv`, cai
+  `requirements.txt`, tai Node.js/FFmpeg portable neu thieu, roi khoi dong
+  API -> migration -> Celery -> web. `Stop Project.bat` khong xoa job/queue.
+- API migration that bai gio lam API startup that bai; worker chi duoc khoi
+  dong sau khi API health check thanh cong, tranh worker ghi vao schema chua
+  duoc migrate.
 
 ## 8. Van de dang mo / can quyet dinh
 
+- **Chua smoke-test Start Project tren may Windows sach** - script tu bootstrap
+  Python packages, Node.js/FFmpeg va chon Docker/SQLite, nhung phien nay chi
+  co the kiem tra syntax/logic va unit test, khong co Docker Engine de chay
+  Postgres/Redis. Can thu tren may khong co Docker va may co Docker de xac
+  nhan ca hai nhanh; lan cai dau can Internet va dung luong lon.
 - ~~Chua co trang "Sua phu de" (Editor) trong UI React~~ - **DA LAM LAI
   (2026-07-14)**, xem muc 6o.
 - **Clone giong long tieng (VieNeu-TTS, muc 6p) CHUA duoc verify tren GPU
@@ -1488,7 +1495,7 @@ LLM - viec sau" o muc 6j):
   `docs/CODE_STYLE.md` moi duoc chot (2026-07-02) nhung code truoc do viet
   trong sandbox khong co Python that nen chua verify duoc. Da ra soat thu cong
   toan bo file .py (2026-07-02): sua dong qua 100 ky tu, sua E402 (import sau
-  sys.path bootstrap trong app/Home.py + app/pages/*.py - da khai bao ngoai le
+  sys.path bootstrap trong worker/Home.py + worker/pages/*.py - da khai bao ngoai le
   trong `pyproject.toml` `per-file-ignores`), bo type hint du thua trong
   `JobRepository.__init__`. Ra soat tay KHONG thay the duoc viec chay that
   `ruff check --fix .` + `ruff format .` + `pytest` - can lam viec nay dau
@@ -1504,20 +1511,20 @@ LLM - viec sau" o muc 6j):
   CUDA=True tren RTX 4050, faster_whisper/whisperx/pyannote.audio/df/
   transformers/edge_tts/soundfile da cai, HF_TOKEN da set) - moi truong da san
   sang, nhung `run_all.py` VAN CHUA chay (khong co file mau nao trong
-  `phase1_feasibility/samples/`, thu muc `results/` chua ton tai) nen bang so
+  `feasibility/samples/`, thu muc `results/` chua ton tai) nen bang so
   lieu VRAM/thoi gian van con trong. Can bo 1 file video/audio mau vao
-  `phase1_feasibility/samples/` roi chay `run_all.py` +
+  `feasibility/samples/` roi chay `run_all.py` +
   `summarize_results.py`.
 - **Phase 2: logic dieu phoi da duoc `pytest` xac nhan (2026-07-03, xem muc
   9), nhung CHUA chay voi model AI that/GPU that** - dac biet: giai phong VRAM
-  giua cac buoc trong CUNG 1 process (`subtitle_pipeline/infrastructure/gpu.py`)
+  giua cac buoc trong CUNG 1 process (`pipeline/infrastructure/gpu.py`)
   co du tranh OOM khi chay lien tiep denoise -> transcribe -> align -> diarize
   hay khong. Neu OOM, phuong an du phong: chay tung buoc trong subprocess
-  rieng (nhu `phase1_feasibility/run_all.py`) thay vi trong cung 1 process
+  rieng (nhu `feasibility/run_all.py`) thay vi trong cung 1 process
   Celery task.
 - **Chua xac minh Phase 3 tren may that** - toan bo (docker-compose Postgres/
   Redis, Celery worker, Streamlit multipage, doan them sys.path thu cong o dau
-  moi file trong `app/`) chua duoc chay lan nao. Rui ro cao nhat: loi import do
+  moi file trong `worker/`) chua duoc chay lan nao. Rui ro cao nhat: loi import do
   sys.path (neu Streamlit/Celery version xu ly khac voi gia dinh), va Celery
   worker chay task GPU nang trong tien trinh worker co the gap van de tuong tu
   Phase 2 (OOM) nhung kho debug hon vi chay ngam.
@@ -1536,19 +1543,13 @@ LLM - viec sau" o muc 6j):
     duoc chay thu, kha nang cao se can sua lai tham so hoac cach lay ma ngon
     ngu khi test that (xem docstring trong `translator_nllb.py`). Model
     `nllb-200-distilled-600M` (~2.4GB) can tai ve lan dau, cong them VRAM/RAM.
-  - ~~Phase 8: `app/storage.py` (S3Storage) hoan toan chua test...~~ - **DA XOA
+  - ~~Phase 8: `worker/storage.py` (S3Storage) hoan toan chua test...~~ - **DA XOA
     (2026-07-13)** theo yeu cau nguoi dung, khong con la van de mo (xem muc 6h
     "Cap nhat 2026-07-13").
-- **DB schema vua thay doi (2026-07-03, bo Auth/Billing) - CAN RESET DB truoc
-  khi chay lai:** bang `jobs` cu (neu da tung chay `docker compose up` va tao
-  job that) co the con cot `user_id NOT NULL` va bang `users`/`subscriptions`
-  cu - model Python moi khong con cac truong/bang nay.
-  `Base.metadata.create_all()` (`app/db/session.py`) CHI tao bang con thieu,
-  KHONG tu ALTER bang da ton tai - neu khong reset, insert Job moi se loi vi
-  pham NOT NULL tren cot `user_id` cu. Cach reset (XOA HET DU LIEU JOB CU,
-  chi lam neu khong can giu job cu): `docker compose down -v` roi
-  `docker compose up -d` de tao lai volume Postgres sach, hoac
-  `DROP TABLE jobs, users, subscriptions CASCADE;` thu cong qua `psql`.
+- ~~DB schema vua thay doi (2026-07-03, bo Auth/Billing) - CAN RESET DB~~ -
+  **DA GIAI QUYET bang Alembic migration 0002**: API startup xoa bang `users`
+  va cot ownership cu, giu nguyen job/voice records. Khong reset/xoa
+  `storage/app.db` hay Docker volume; migration tu chay khi mo app.
 - **Phase 5b da chay thu 1 lan tren may that voi MMS-TTS - chat luong giong
   qua te, da doi sang `edge-tts` (xem muc 6i "Cap nhat 2026-07-03 lan 2").
   Ban `edge-tts` CHUA duoc chay thu end-to-end lan nao:**
@@ -1576,9 +1577,27 @@ LLM - viec sau" o muc 6j):
 
 ## 9. Nhat ky cap nhat
 
+- 2026-11-20: **Don gian hoa cai dat/chay tren Windows cho nguoi khong chuyen**:
+  them `Start Project.bat`/`Stop Project.bat`; launcher tu tao `.env` va `.venv`,
+  cai requirements, tai Node.js + FFmpeg portable neu thieu, thu khoi dong
+  Docker va fallback sang SQLite neu khong co Docker Engine. SQLite du lieu
+  dung lai `storage/app.db` hien co; Celery local dung `storage/celery.db`.
+  `pipeline_settings.py` tu chuyen sang CPU/int8 neu CUDA khong san sang.
+  Khong con fallback am tham tu DB URL loi; migration Alembic that bai lam
+  API khong khoi dong va API phai ready truoc worker. Stop khong purge queue.
+  Them test SQLite mac dinh/DB URL loi va queue fallback Redis -> SQLite.
+
+- 2026-11-20: Chuan hoa ten file va ten folder theo responsibility thay vi
+  lich su/phase: `worker/` (DB, Celery, worker), `api/` (FastAPI routes),
+  `pipeline/` (AI workflow/adapters), `web/` (React), `feasibility/`
+  (phase1 measurement), `database_migrations/` (Alembic). Da doi ten module
+  va test khop luong: transcription workflow, dubbing workflow, translation
+  workflow, job routes/store/tasks, subtitle editor/dashboard. Docker,
+  script start/stop, CI, Alembic va import da duoc cap nhat.
+
 - 2026-11-20: Bo hoan toan auth dang ky/dang nhap/JWT/admin account khoi du
   an theo muc dich dung local ca nhan. Backend khong con `/api/auth`,
-  `User`/`Job.user_id`/`CustomVoice.user_id`; frontend khong con auth context,
+  `User`/`Job.user_id`/`CustomVoice.user_id`; web khong con auth context,
   login/register va xem user. Toan bo job/giong clone la tai san local chung.
   Them migration `0002_remove_auth` de xoa bang/users va cot ownership tren DB
   cu; them test xac nhan route auth khong ton tai va app van chay khong token.
@@ -1586,9 +1605,9 @@ LLM - viec sau" o muc 6j):
 - 2026-07-01: Tao HANDOFF.md, viet xong code Phase 1 (chua chay thu, cho chay tren
   may dev that co GPU).
 - 2026-07-01: Push repo len GitHub (github.com/DauDinhQuangAnh/testai, nhanh main).
-- 2026-07-01: Viet xong code Phase 2 (AI Pipeline Core, `subtitle_pipeline/` +
+- 2026-07-01: Viet xong code Phase 2 (AI Pipeline Core, `pipeline/` +
   `tests/`) - CHUA chay thu tren may dev that, Phase 1 cung chua co ket qua do.
-- 2026-07-01: Viet xong code Phase 3 (Streamlit App - `app/` + `docker-compose.yml`
+- 2026-07-01: Viet xong code Phase 3 (Streamlit App - `worker/` + `docker-compose.yml`
   + test JobRepository) - CHUA chay thu, CHUA push len GitHub (theo yeu cau
   nguoi dung, se hoi lai truoc khi commit/push).
 - 2026-07-02: Chot chuan code (`docs/CODE_STYLE.md`, Ruff config trong
@@ -1597,15 +1616,15 @@ LLM - viec sau" o muc 6j):
   muc 8).
 - 2026-07-02: Ra soat toan bo repo theo yeu cau nguoi dung ("go re phai chac"):
   sua 2 loi lint thuc su (E402 can khai bao ngoai le, type hint du thua trong
-  `JobRepository`), va refactor `phase1_feasibility/` de doi ten file ro rang
-  hon (`stepNN_ten.py`) va xoa trung lap logic voi `subtitle_pipeline/` (goi
+  `JobRepository`), va refactor `feasibility/` de doi ten file ro rang
+  hon (`stepNN_ten.py`) va xoa trung lap logic voi `pipeline/` (goi
   lai adapter Phase 2 thay vi tu viet lai). Xem chi tiet muc 7 va 8.
-- 2026-07-02: Viet xong code Phase 4 (Editor - `app/pages/3_Editor.py`, doi
+- 2026-07-02: Viet xong code Phase 4 (Editor - `worker/pages/3_Editor.py`, doi
   huong sang `st.data_editor` thay vi Custom Streamlit Component), Phase 5
-  (dich + toi uu subtitle - `subtitle_pipeline/application/optimize.py`,
-  `translate.py`, `subtitle_pipeline/infrastructure/translator_nllb.py`),
-  Phase 6 (Auth - `app/auth/`, them `User`/`user_id` vao schema), Phase 7
-  (Billing/Stripe - `app/billing/`), va mot phan Phase 8 (`app/storage.py`,
+  (dich + toi uu subtitle - `pipeline/application/optimize.py`,
+  `translate.py`, `pipeline/infrastructure/translator_nllb.py`),
+  Phase 6 (Auth - `worker/auth/`, them `User`/`user_id` vao schema), Phase 7
+  (Billing/Stripe - `worker/billing/`), va mot phan Phase 8 (`worker/storage.py`,
   `.github/workflows/ci.yml`, hardening upload). Phase 9 co chu dich khong
   lam. TOAN BO CHUA CHAY THU - xem danh sach rui ro day du va thu tu kiem thu
   de nghi o muc 8.
@@ -1613,21 +1632,21 @@ LLM - viec sau" o muc 6j):
   push toan bo code Phase 2-8 len GitHub de nguoi dung clone ve may RTX 4050
   chay kiem thu.
 - 2026-07-02: BO toan bo thanh toan Stripe theo yeu cau nguoi dung ("khong can
-  thanh toan kieu vay qua app"): xoa `app/billing/stripe_service.py`,
-  `app/billing/webhook_app.py`, bien env STRIPE_*, dependency
+  thanh toan kieu vay qua app"): xoa `worker/billing/stripe_service.py`,
+  `worker/billing/webhook_app.py`, bien env STRIPE_*, dependency
   stripe/fastapi/uvicorn. GIU goi Free/Pro + gioi han phut/thang; nang goi lam
   thu cong qua `SubscriptionRepository.upsert`. `Subscription` model khong con
   cac truong Stripe; `plans.py` doi tu ham `get_plan_catalog()` sang hang so
   `PLAN_CATALOG` (khong con phu thuoc env).
 - 2026-07-03: Viet xong code Phase 5b - Long tieng (Dubbing/TTS), hoan thien
   flow den ket qua cuoi cung la 1 file video da long tieng (xem muc 6i):
-  `subtitle_pipeline/infrastructure/tts_mms.py` (MMS-TTS qua transformers),
+  `pipeline/infrastructure/tts_mms.py` (MMS-TTS qua transformers),
   `audio_timing.py` (time-stretch ffmpeg atempo), `audio_mux.py` (dung track
   + mux vao video), `application/dub.py` (dieu phoi), Celery task `dub_job`
-  + helper `_load_or_translate_segments` (`app/jobs/tasks.py`), UI gop 1 nut
-  "Dich + Long tieng" trong `app/pages/3_Editor.py`, them `soundfile` vao
+  + helper `_load_or_translate_segments` (`worker/jobs/tasks.py`), UI gop 1 nut
+  "Dich + Long tieng" trong `worker/pages/3_Editor.py`, them `soundfile` vao
   `requirements.txt`, test `test_audio_timing.py`/`test_audio_mux.py`. Cung
-  luc, BO gioi han usage/goi cuoc trong `app/pages/1_Upload.py` theo yeu cau
+  luc, BO gioi han usage/goi cuoc trong `worker/pages/1_Upload.py` theo yeu cau
   nguoi dung (du an chuyen thanh ca nhan/phi thuong mai - xem muc 7). TOAN BO
   Phase 5b CHUA CHAY THU, la phan rui ro cao nhat cua du an (xem muc 8).
 - 2026-07-03: Xac nhan dang chay tren MAY DEV THAT (RTX 4050 6GB VRAM) - venv
@@ -1640,7 +1659,7 @@ LLM - viec sau" o muc 6j):
   job"). Gop `SUPPORTED_LANGUAGES` ve 1 noi dung
   (`translator_nllb.py`) thay vi hardcode rieng o Upload/Editor.
 - 2026-07-03 (lan 2): Nguoi dung chay thu long tieng tren may that, danh gia
-  chat luong giong MMS-TTS "qua te". Research va doi TTS backend sang
+  chat luong giong MMS-TTS "qua te". Research va doi TTS api sang
   `edge-tts` (giong Neural TTS mien phi cua Microsoft, chat luong tot hon han
   - xem HANDOFF.md muc 6i "Cap nhat 2026-07-03 lan 2"): xoa `tts_mms.py`,
   them `tts_edge.py`, `dub_and_export()` bo tham so `device` (khong con can
@@ -1663,7 +1682,7 @@ LLM - viec sau" o muc 6j):
   huong file phu de xuat ra). Co test moi `tests/test_dub.py`.
 - 2026-07-03 (lan 5): XOA HOAN TOAN Auth (Phase 6) + Billing (Phase 7) theo
   yeu cau nguoi dung ("coi source nay chi la Tool ca nhan thoi"). Xoa
-  `app/auth/`, `app/billing/`, `app/pages/4_Billing.py`, model
+  `worker/auth/`, `worker/billing/`, `worker/pages/4_Billing.py`, model
   `User`/`PlanTier`/`Subscription`, cot `Job.user_id`,
   `JobRepository.list_by_user()`, dependency `bcrypt`/`pyjwt`/
   `extra-streamlit-components`, bien env `SESSION_SECRET_KEY`. Bo
@@ -1708,8 +1727,8 @@ LLM - viec sau" o muc 6j):
   `docker run` rieng le, hop nhat lai thanh 1 chuoi quan ly duy nhat qua
   `docker compose up -d`/`down`. Da xac nhan lai bang script that (tao +
   xoa 1 Job qua `JobRepository`) - ket noi + schema hoat dong dung. Ghi chu
-  them: **`load_dotenv()` KHONG duoc goi o bat ky dau trong `app/`**
-  (`app/config.py`, `app/db/session.py`, `app/jobs/celery_app.py`, cac trang
+  them: **`load_dotenv()` KHONG duoc goi o bat ky dau trong `worker/`**
+  (`worker/config.py`, `worker/db/session.py`, `worker/jobs/celery_app.py`, cac trang
   Streamlit) - cac ham `from_env()` chi doc `os.environ` truc tiep, nen
   `.env` CHI co tac dung neu shell/terminal dang chay `streamlit`/`celery`
   da tu export cac bien do truoc (hoac dung cong cu nhu `direnv`). Chua ro
@@ -1719,12 +1738,12 @@ LLM - viec sau" o muc 6j):
 - 2026-07-03 (lan 8): **Thay doi song song ngoai phien lam viec nay** (rat co
   the tu Codex - xem quy uoc dung chung HANDOFF.md o dau file), phat hien qua
   `git log`/`git diff` khi dieu tra khieu nai "van con \\n trong .vi.json":
-  - `subtitle_pipeline/export/formats.py`: them `_single_line_text()`, `to_json()`
+  - `pipeline/export/formats.py`: them `_single_line_text()`, `to_json()`
     gio loai bo het `\n` (do `optimize_segments` chen vao de ngat dong hien
     thi) khoi truong `text` - **CHI anh huong file JSON**, cac dinh dang
     srt/vtt/ass/txt van giu `\n` de hien thi dung chuan phu de. Co test
     `test_to_json_removes_line_wrapping_newlines`.
-  - `subtitle_pipeline/application/dub.py`: **BO HOAN TOAN buoc co-gian thoi
+  - `pipeline/application/dub.py`: **BO HOAN TOAN buoc co-gian thoi
     luong (`time_stretch_to_duration`/ffmpeg `atempo`)** - xac nhan voi nguoi
     dung day la co y (atempo lam giong nghe do). Gio dung thang do dai raw
     cua clip TTS, dat vao dung `seg.start` tren timeline, KHONG ep khop
@@ -1765,7 +1784,7 @@ LLM - viec sau" o muc 6j):
     thanh list co dinh `["vi","en","zh","ja","ko","fr","es"]`, khong con
     derive tu dict nguon (gio lon hon nhieu) nua - phai khop dung
     `EDGE_TTS_VOICES` trong `tts_edge.py`.
-  - `app/jobs/tasks.py`: `process_video_job` dung `detected_language` that
+  - `worker/jobs/tasks.py`: `process_video_job` dung `detected_language` that
     (khong phai `config.language`) cho `translate_and_export`; ghi ra file
     sidecar `{stem}.source_language.txt` de `translate_job`/`dub_job` (chay
     Celery task rieng, khong co bien nay san trong bo nho) doc lai dung qua
@@ -1797,9 +1816,9 @@ LLM - viec sau" o muc 6j):
   muc 0 (bo buoc dien SESSION_SECRET_KEY da xoa), muc 1 (tool ca nhan +
   pipeline co TTS), roadmap 5b (edge-tts thay MMS-TTS). Sua 2 van de code
   that:
-  - **Dong van de mo "load_dotenv() khong duoc goi trong app/" (nhat ky lan
-    7):** them `load_dotenv()` vao `app/db/session.py`, `app/jobs/celery_app.py`,
-    `app/config.py` - `.env` gio co tac dung that voi Streamlit/Celery ma
+  - **Dong van de mo "load_dotenv() khong duoc goi trong worker/" (nhat ky lan
+    7):** them `load_dotenv()` vao `worker/db/session.py`, `worker/jobs/celery_app.py`,
+    `worker/config.py` - `.env` gio co tac dung that voi Streamlit/Celery ma
     khong can shell tu export bien.
   - **`DEFAULT_DATABASE_URL` (session.py) van tro port 5432** trong khi
     docker-compose/.env da chuyen sang 15432 (may dev co Postgres native
@@ -1857,7 +1876,7 @@ LLM - viec sau" o muc 6j):
     **sua 1 bug tiem an co that**: Streamlit mac dinh chi cho upload 200MB
     trong khi app tu dat gioi han 500MB (nguoi dung upload file 200-500MB se
     bi Streamlit chan truoc khi code app kip kiem tra).
-  - `app/ui.py` MOI: map `Job.stage` -> (phan tram, nhan tieng Viet) dung
+  - `worker/ui.py` MOI: map `Job.stage` -> (phan tram, nhan tieng Viet) dung
     chung, de progress bar nhat quan giua cac trang.
   - `Home.py`: metric tong quan (tong/dang chay/hoan thanh/that bai) +
     page_link dieu huong + mo ta quy trinh 3 buoc.
@@ -1880,7 +1899,7 @@ LLM - viec sau" o muc 6j):
 - 2026-07-03 (lan 14): **Chuyen TOAN BO chuoi hien thi cho nguoi dung sang
   tieng Viet CO DAU** theo yeu cau nguoi dung (truoc do viet khong dau tu
   dau du an). Pham vi: 4 trang UI (`Home.py`, `1_Upload.py`, `2_Dashboard.py`,
-  `3_Editor.py`), nhan stage/status (`app/ui.py`), nhan giong doc
+  `3_Editor.py`), nhan stage/status (`worker/ui.py`), nhan giong doc
   (`tts_edge.VOICE_OPTIONS`), thong bao loi hien tren Dashboard
   (`tasks.py` error_message, ValueError trong `translator_nllb.py`/
   `tts_edge.py`). Quy uoc moi ghi vao `docs/CODE_STYLE.md`: chuoi UI PHAI co
@@ -1892,7 +1911,7 @@ LLM - viec sau" o muc 6j):
   nang cap duoc de xuat). Truoc do `dub_and_export()` dung CHUNG 1 giong cho
   ca video bat ke bao nhieu nguoi noi (`SubtitleSegment.speaker` tu
   diarization bi bo qua hoan toan o buoc long tieng). Da sua
-  `subtitle_pipeline/application/dub.py`:
+  `pipeline/application/dub.py`:
   - Ham thuan moi `_build_speaker_voice_map(segments, language, voice)` -
     nguoi noi xuat hien DAU TIEN dung dung `voice` nguoi dung chon (giu
     dung ky vong UI hien tai), cac nguoi noi tiep theo lan luot nhan 1
@@ -1904,7 +1923,7 @@ LLM - viec sau" o muc 6j):
     tao moi khi gap giong chua dung, tai su dung khi gap lai. Vi
     `EdgeTTSSynthesizer.__enter__/__exit__` hien khong lam gi (khong co GPU
     state that), doi nay an toan; ExitStack giup neu sau nay doi sang TTS
-    backend co state that (vd. VieNeu-TTS, xem tts_edge.py) van dong dung
+    api co state that (vd. VieNeu-TTS, xem tts_edge.py) van dong dung
     properly.
   - `sample_rate` gio lay truc tiep tu hang so `OUTPUT_SAMPLE_RATE` trong
     `tts_edge.py` thay vi doc tu 1 instance `tts.sample_rate` - tranh loi
@@ -1943,8 +1962,8 @@ LLM - viec sau" o muc 6j):
 - 2026-07-04: **Chuyen UI tu Streamlit sang React + FastAPI** (nguoi dung:
   "Streamlit khong phu hop lam UI chuyen nghiep") - DAO NGUOC 2 quyet dinh
   cu (Streamlit-only, khong-Auth). Xem chi tiet muc 6k moi. Tom tat:
-  `backend/` FastAPI (JWT + bcrypt, admin = tai khoan chung tu env, khong
-  gioi han usage theo yeu cau), `frontend/` Vite+React+TS+Tailwind (landing
+  `api/` FastAPI (JWT + bcrypt, admin = tai khoan chung tu env, khong
+  gioi han usage theo yeu cau), `web/` Vite+React+TS+Tailwind (landing
   page, login/register, Studio + wizard 6 buoc stepper that, job detail voi
   video player, trang admin). Them lai `User`/`Job.user_id` (nullable,
   migration ALTER tu dong luc startup - KHONG can reset DB). Lỗi pipeline/
@@ -1953,16 +1972,16 @@ LLM - viec sau" o muc 6j):
   Postgres OK. CHUA test E2E qua UI React (checklist muc 6k).
 - 2026-07-04 (cung ngay, lan 2): **Xoa hoan toan Streamlit** theo yeu cau
   nguoi dung (khong con giu legacy nhu du dinh) - xem chi tiet muc 6k "Cap
-  nhat 2026-07-04". Xoa `app/pages/`, `app/Home.py`, `app/ui.py`,
+  nhat 2026-07-04". Xoa `worker/pages/`, `worker/Home.py`, `worker/ui.py`,
   `.streamlit/`; bo dependency `streamlit`/`pandas`; don `pyproject.toml`
-  (bo E402 ignore da het can); them job `frontend-build` vao CI. Cap nhat
-  docstring `app/jobs/tasks.py`/`repository.py`/`stages.py` (khong con nhac
+  (bo E402 ignore da het can); them job `web-build` vao CI. Cap nhat
+  docstring `worker/jobs/tasks.py`/`repository.py`/`stages.py` (khong con nhac
   Streamlit). README.md them huong dan chay 4 tien trinh (docker compose +
   celery + uvicorn + npm run dev). 91/91 pytest + ruff sach sau khi xoa.
 - 2026-07-05: **Them tu dong lay cookie YouTube/Douyin bang Playwright**
   (nguoi dung: "tim phuong thuc manh hon tien hon" thay vi export cookie tay
   qua extension). Xem chi tiet muc 6l. File moi
-  `subtitle_pipeline/infrastructure/cookie_refresh.py` (2 che do:
+  `pipeline/infrastructure/cookie_refresh.py` (2 che do:
   `setup_login_session` mo trinh duyet that dang nhap 1 lan, `refresh_cookies`
   chay an tai su dung session da luu), endpoint
   `POST /api/admin/refresh-cookies`, nut "Lam moi cookie" trong trang Admin.
@@ -1971,7 +1990,7 @@ LLM - viec sau" o muc 6j):
   chua code xong buoc "verification challenge" (con la TODO trong code cua
   ho) - da xac nhan bang thu nghiem that (44 cookie that van loi y het).
   YouTube khong bi gioi han nay nen giai phap Playwright van huu ich day du.
-  107/107 pytest pass (them `test_cookie_refresh.py` + 3 test backend moi),
+  107/107 pytest pass (them `test_cookie_refresh.py` + 3 test api moi),
   ruff sach, `npm run build` pass, da chay Playwright+Chromium THAT tren may
   (khong gia lap) de xac nhan dinh dang cookies.txt sinh ra dung.
 - 2026-07-05 (cung ngay, lan 2): **BO HOAN TOAN tinh nang tai video tu URL
@@ -1980,33 +1999,33 @@ LLM - viec sau" o muc 6j):
   upload thôi"). Xoa sach ca phan "Buoc 1 - Nguon" (muc 6j) lan tinh nang
   cookie refresh vua them cung ngay (muc 6l) vi ca 2 chi ton tai de phuc vu
   download URL:
-  - Xoa file: `subtitle_pipeline/infrastructure/downloader_ytdlp.py`,
-    `subtitle_pipeline/infrastructure/cookie_refresh.py`,
+  - Xoa file: `pipeline/infrastructure/downloader_ytdlp.py`,
+    `pipeline/infrastructure/cookie_refresh.py`,
     `tests/test_downloader.py`, `tests/test_cookie_refresh.py`.
-  - `app/jobs/tasks.py`: `_resolve_input()` bo nhanh tai URL (`download_video`),
+  - `worker/jobs/tasks.py`: `_resolve_input()` bo nhanh tai URL (`download_video`),
     chi con logic cat ngan (trim) khi test doan ngan. `process_video_job` bo
     stage "download".
-  - `app/jobs/stages.py`: bo entry `("download", "Tải video từ URL")` khoi
+  - `worker/jobs/stages.py`: bo entry `("download", "Tải video từ URL")` khoi
     `PIPELINE_STAGES` (con 10 buoc thay vi 11).
-  - `app/jobs/repository.py`: xoa `JobRepository.update_source()` (chi dung
+  - `worker/jobs/repository.py`: xoa `JobRepository.update_source()` (chi dung
     de cap nhat filename/input_path THAT sau khi tai URL xong).
-  - `backend/routers/jobs.py`: `_create_job_from_options()`/`rerun_job()` bo
+  - `api/routers/jobs.py`: `_create_job_from_options()`/`rerun_job()` bo
     nhanh `source.url` - gio BAT BUOC phai co file upload, khong co file thi
     tra loi 400.
-  - `backend/routers/admin.py`: xoa endpoint `POST /admin/refresh-cookies`.
+  - `api/routers/admin.py`: xoa endpoint `POST /admin/refresh-cookies`.
   - `requirements.txt`: bo `yt-dlp`, `playwright`. `.env.example`: bo
     `YTDLP_COOKIES_FILE`/`YTDLP_COOKIES_FROM_BROWSER`.
-  - `frontend/src/pages/NewJob.tsx` (Buoc 1 cua wizard): bo toggle "Dán
+  - `web/src/pages/NewJob.tsx` (Buoc 1 cua wizard): bo toggle "Dán
     URL"/"Tải video lên" - gio CHI hien input chon file. Bo state `useUrl`,
     `sourceValid` gio chi phu thuoc `file`.
-  - `frontend/src/lib/types.ts`: bo `url`/`quality` khoi `JobOptions.source`.
-  - `frontend/src/lib/constants.ts`: xoa `QUALITY_CHOICES`, bo entry
+  - `web/src/lib/types.ts`: bo `url`/`quality` khoi `JobOptions.source`.
+  - `web/src/lib/constants.ts`: xoa `QUALITY_CHOICES`, bo entry
     `download` khoi `PIPELINE_STEPS` (con 10 buoc).
-  - `frontend/src/pages/Admin.tsx`: xoa section "Cookie tải video" + nut "Làm
+  - `web/src/pages/Admin.tsx`: xoa section "Cookie tải video" + nut "Làm
     mới cookie".
-  - `frontend/src/pages/Landing.tsx`: sua copy quang cao (bo nhac "Dán link
+  - `web/src/pages/Landing.tsx`: sua copy quang cao (bo nhac "Dán link
     là xong"/"video YouTube, Douyin") thanh mo ta upload-only.
-  - Test: xoa 2 test lien quan URL/cookie trong `tests/test_backend_api.py`
+  - Test: xoa 2 test lien quan URL/cookie trong `tests/test_api_api.py`
     (`test_create_url_job_without_file`, `test_refresh_cookies_*`), doi ten
     `test_create_job_without_file_or_url_rejected` ->
     `test_create_job_without_file_rejected`; xoa
@@ -2019,7 +2038,7 @@ LLM - viec sau" o muc 6j):
   vien" thanh "Mau nen"** o Buoc 4 wizard (theo yeu cau nguoi dung). Truoc do
   vi tri chi co 3 nut co dinh (Duoi/Giua/Tren, canh giua ngang) va o mau chi
   chinh duoc mau vien chu (khong chinh duoc mau hop nen). Thay doi:
-  - `subtitle_pipeline/export/formats.py`: `SubtitleStyle` bo field
+  - `pipeline/export/formats.py`: `SubtitleStyle` bo field
     `position` (enum) va `outline_color`, them `position_x`/`position_y`
     (% 0..100, mac dinh 50/90 ~ tuong duong "Duoi" cu) va `background_color`
     (mac dinh `#000000`, giu nguyen hanh vi cu). `to_ass()` gio ghi de vi tri
@@ -2030,11 +2049,11 @@ LLM - viec sau" o muc 6j):
     (test khoa `test_to_ass_default_style_matches_legacy_header` van pass
     khong sua) vi Alignment/Margin trong header van la gia tri cu, chi khong
     con anh huong render (bi `\pos()` de len).
-  - `frontend/src/pages/NewJob.tsx` Buoc 4: bo 3 nut vi tri, thay bang khung
+  - `web/src/pages/NewJob.tsx` Buoc 4: bo 3 nut vi tri, thay bang khung
     xem truoc co the KEO THA truc tiep dong chu mau (pointer events, tinh %
     theo vi tri con tro so voi khung). O mau "Mau vien" doi thanh "Mau nen"
     (`background_color`, chi hien ro khi bat "Hop nen dac sau chu").
-  - `frontend/src/lib/types.ts`/`constants.ts`: `JobOptions.subtitle.style`
+  - `web/src/lib/types.ts`/`constants.ts`: `JobOptions.subtitle.style`
     doi field tuong ung; xoa `POSITION_CHOICES` (khong con dung).
   - `tests/test_export_formats.py`: doi
     `test_to_ass_custom_style_changes_alignment_box_and_colors` thanh
@@ -2046,9 +2065,9 @@ LLM - viec sau" o muc 6j):
   ra (chi xac nhan qua unit test chuoi ASS sinh ra dung).
 - 2026-07-05 (cung ngay, lan 4): **Them bang phat am rieng cho giong doc long
   tieng** (khac bang thuat ngu dich hien co) - xem chi tiet muc 6m. Tom tat:
-  file JSON mac dinh `subtitle_pipeline/infrastructure/pronunciation_glossary.json`
+  file JSON mac dinh `pipeline/infrastructure/pronunciation_glossary.json`
   (seed `"vi": {"SQL": "ét quy eo"}`) + textarea moi o Buoc 3 wizard (uu tien
-  hon JSON neu trung tu) + module `subtitle_pipeline/application/
+  hon JSON neu trung tu) + module `pipeline/application/
   pronunciation.py` ap dung ngay truoc buoc TTS trong `dub.py` - CHI doi
   audio, khong dung phu de xuat ra. Cung luc them 1 dong thong tin o dau
   Buoc 3 hien ro dang dich/long tieng sang ngon ngu nao (doc tu Buoc 2) vi
@@ -2060,7 +2079,7 @@ LLM - viec sau" o muc 6j):
   theo yeu cau nguoi dung ("phai xong tung buoc roi moi cho phep qua buoc
   moi... co the quay lai va luu cac cai da chinh chu khong mat di"). Truoc do
   sidebar cho bam thang toi bat ky buoc nao (kem "Tiep tuc" khong kiem tra
-  gi), du chua chon file o Buoc 1. `frontend/src/pages/NewJob.tsx`:
+  gi), du chua chon file o Buoc 1. `web/src/pages/NewJob.tsx`:
   - State moi `maxStepReached` (buoc xa nhat da tung mo khoa, khoi tao 0).
     Nut "Tiep tuc" chi bat khi `canAdvanceFromStep(step)` dung (hien chi
     Buoc 1 co dieu kien that: phai chon file - cac buoc sau deu co gia tri
@@ -2082,8 +2101,8 @@ LLM - viec sau" o muc 6j):
   duoc Codex viet lai** (song song, khong biet quyet dinh xoa truoc do cua
   nguoi dung) - nguoi dung xac nhan MUON GIU ban moi. Xem chi tiet muc 6j.
   Tom tat: xac nhan ban CU (cookie/Playwright) da xoa sach khong lan voi ban
-  moi; sua bug parity `PIPELINE_STEPS` (frontend) thieu stage "download" so
-  voi backend gay hien sai ten buoc tren thanh tien do; sua 1 test cua chinh
+  moi; sua bug parity `PIPELINE_STEPS` (web) thieu stage "download" so
+  voi api gay hien sai ten buoc tren thanh tien do; sua 1 test cua chinh
   minh (`test_pronunciation.py`) bi fail vi phu thuoc noi dung file JSON
   nguoi dung tu sua. 96/96 pytest pass, `npm run build` pass.
 - 2026-07-05 (cung ngay, lan 7): **Them chi bao loading (spinner/skeleton)
@@ -2093,9 +2112,9 @@ LLM - viec sau" o muc 6j):
   user, nghe thu giong, phan tich link) chi doi CHU (vd. "Dang tai...")
   khong doi mau/icon, mot so noi (bang Admin) khong co bat ky dau hieu dang
   tai nao. Them:
-  - `frontend/src/components/Spinner.tsx` - icon SVG xoay (dung class
+  - `web/src/components/Spinner.tsx` - icon SVG xoay (dung class
     Tailwind `animate-spin` co san), tai su dung moi noi.
-  - `frontend/src/components/GlobalLoadingBar.tsx` - thanh mong co dinh o
+  - `web/src/components/GlobalLoadingBar.tsx` - thanh mong co dinh o
     dau trang, TU DONG hien khi co BAT KY mutation nao dang chay
     (`useIsMutating()`) HOAC lan fetch DAU TIEN cua 1 trang
     (`useIsFetching({ predicate: query => query.state.data === undefined })`)
@@ -2124,16 +2143,16 @@ LLM - viec sau" o muc 6j):
   theo yeu cau nguoi dung. Da chay `ruff check .`/`ruff format .` tren TOAN
   BO repo (truoc gio moi chi chay tren file vua sua trong tung phien) va sua
   het 13 loi con sot lai:
-  - I001 (import chua sort) o `phase1_feasibility/step01/02/03/04/05.py` +
-    `subtitle_pipeline/infrastructure/downloader_ytdlp.py` - auto-fix.
-  - SIM117 (gop `with` long nhau) o 4 script `phase1_feasibility/step02/04/
+  - I001 (import chua sort) o `feasibility/step01/02/03/04/05.py` +
+    `pipeline/infrastructure/downloader_ytdlp.py` - auto-fix.
+  - SIM117 (gop `with` long nhau) o 4 script `feasibility/step02/04/
     05/06` - gop thanh 1 `with (A, B as b):` (Python 3.10+ parenthesized
     context managers), khong doi hanh vi.
   - SIM105 (`try/except OSError: pass` -> `contextlib.suppress(OSError)`)
-    o `app/jobs/tasks.py::_cleanup_downloaded_input` va
-    `subtitle_pipeline/infrastructure/downloader_ytdlp.py::_cleanup_download_temps`.
+    o `worker/jobs/tasks.py::_cleanup_downloaded_input` va
+    `pipeline/infrastructure/downloader_ytdlp.py::_cleanup_download_temps`.
   - **Phat hien + sua 1 BUG THAT (khong chi loi lint):**
-    `phase1_feasibility/step04_transcribe.py` goi
+    `feasibility/step04_transcribe.py` goi
     `transcriber.transcribe()` va coi ket qua la thang list segment, nhung
     `FasterWhisperTranscriber.transcribe()` da doi sang tra ve
     `tuple[list[TranscriptSegment], str]` (kem ngon ngu detect duoc) tu lan
@@ -2142,18 +2161,18 @@ LLM - viec sau" o muc 6j):
     (asdict() tren 1 list/string thay vi dataclass). Da sua: unpack dung
     `segments, detected_language = transcriber.transcribe(...)`, in them
     ngon ngu detect duoc ra console.
-  - **Rut gon 1 cho code lap:** `backend/routers/jobs.py` co 2 noi ghi
+  - **Rut gon 1 cho code lap:** `api/routers/jobs.py` co 2 noi ghi
     `job_config.json` giong het nhau (`_create_job_from_options` va
     `rerun_job`) - gop thanh ham dung chung `_write_job_config(job_dir,
     options)`.
   - Da ra soat them (khong sua vi khong phai "du thua" ma la thieu sot CO
-    CHU DICH, da ghi ro trong HANDOFF tu truoc): `app/storage.py`
+    CHU DICH, da ghi ro trong HANDOFF tu truoc): `worker/storage.py`
     (`Storage`/`LocalStorage`/`S3Storage`) CHI duoc dung boi
     `tests/test_storage.py`, chua duoc noi vao Upload/Celery task nao - day
     la Phase 8 "chua lam" tu lau (xem muc 4/8), KHONG xoa vi la placeholder
     co y cho tinh nang S3 sau nay, chi ghi nhan lai o day de nguoi dung
     biet van con ton tai.
-  - Kiem tra frontend: `tsconfig.app.json` da bat san
+  - Kiem tra web: `tsconfig.app.json` da bat san
     `noUnusedLocals`/`noUnusedParameters` (strict) nen KHONG co import/bien
     thua nao (xac nhan qua `npm run build` sach) - khong co ESLint rieng
     trong repo nay.
@@ -2168,29 +2187,29 @@ LLM - viec sau" o muc 6j):
   - **Dung Gmail SMTP + App Password** (khong phai dich vu transactional
     email rieng) - phu hop tool ca nhan, khong can dang ky them tai khoan.
   Kien truc:
-  - `backend/email_sender.py` (module moi) - dung `smtplib` chuan cua
+  - `api/email_sender.py` (module moi) - dung `smtplib` chuan cua
     Python (KHONG them dependency moi vao requirements.txt).
     `send_job_result_email(to_email, job_id, filename)` gui email chua link
     `{FRONTEND_URL}/studio/jobs/{job_id}` toi email DA DANG KY tai khoan
-    (`AuthUser.email` co san trong `backend/security.py`, khong can hoi lai
+    (`AuthUser.email` co san trong `api/security.py`, khong can hoi lai
     nguoi dung). Link KHONG chua token (khac `fileUrl()` dung cho
     `<video src>`) - nguoi nhan phai dang nhap lai de xem, an toan hon neu
     email bi forward/leak. Rai `EmailNotConfiguredError` neu chua dien
     `SMTP_USER`/`SMTP_PASSWORD` trong `.env`.
-  - `backend/routers/jobs.py`: them `POST /jobs/{id}/send-email` (chi cho
+  - `api/routers/jobs.py`: them `POST /jobs/{id}/send-email` (chi cho
     phep khi `job.status == JobStatus.DONE`, dung lai `_get_owned_job` de
     kiem tra quyen so huu) - tra 400 neu job chua xong, 503 neu SMTP chua
     cau hinh, 502 neu gui that bai (loi mang/dang nhap SMTP sai).
   - `.env.example`: them `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/
     `SMTP_PASSWORD`/`SMTP_FROM_NAME` + `FRONTEND_URL` (dung de dung link
     trong email) kem huong dan tao Gmail App Password.
-  - `frontend/src/pages/JobDetail.tsx`: them nut "Gui ve email" canh "Chon
+  - `web/src/pages/JobDetail.tsx`: them nut "Gui ve email" canh "Chon
     noi luu"/"Tai video" trong the "Clip ket qua", dung `useMutation` + hien
     `<Spinner>` luc dang gui (nhat quan voi cac nut mutation khac da them o
     lan sua truoc), hien thong bao thanh cong/loi ngay duoi.
   - Test moi: `tests/test_email_sender.py` (mock `smtplib.SMTP_SSL`, xac
     nhan gui dung link + KHONG dinh kem file, rai loi khi chua cau hinh) +
-    3 test trong `tests/test_backend_api.py` (tu choi khi job chua DONE,
+    3 test trong `tests/test_api_api.py` (tu choi khi job chua DONE,
     gui dung email da dang ky, tra 502 khi SMTP loi).
   **Chua gui thu email that** (sandbox khong the ket noi SMTP that ra
   ngoai) - nguoi dung can tu dien `SMTP_USER`/`SMTP_PASSWORD` (Gmail App
@@ -2206,7 +2225,7 @@ LLM - viec sau" o muc 6j):
   "intentionally does not include anti-bot circumvention"), nen khong dung
   de "hoc theo" duoc ma phai tu khoi phuc co che cookie cua chinh du an.
   Xem chi tiet muc 6l "Cap nhat 2026-07-05 (khoi phuc)". Tom tat: khoi phuc
-  `subtitle_pipeline/infrastructure/cookie_refresh.py` (tu git history, bo
+  `pipeline/infrastructure/cookie_refresh.py` (tu git history, bo
   Douyin khoi scope) + noi vao `downloader_ytdlp.py` qua ham moi
   `_cookie_options()` (ca `analyze_video()` va `download_video()`) + nhan
   dien loi bot-check trong `friendly_yt_dlp_error()` + khoi phuc endpoint
@@ -2216,7 +2235,7 @@ LLM - viec sau" o muc 6j):
   114/114 pytest pass, ruff sach, `npm run build` pass. **Chua chay
   `--setup`/`--refresh` voi Chromium that** - nguoi dung can tu
   `pip install -r requirements.txt`, `python -m playwright install
-  chromium`, roi `python -m subtitle_pipeline.infrastructure.cookie_refresh
+  chromium`, roi `python -m pipeline.infrastructure.cookie_refresh
   --setup` va thu tai lai video tung bi chan de xac nhan het loi.
 - 2026-07-07: **Sua trai nghiem gay hieu lam trong `cookie_refresh.py`**:
   nguoi dung chay `--refresh` TRUOC `--setup` (chua tung dang nhap) - lenh
@@ -2232,7 +2251,7 @@ LLM - viec sau" o muc 6j):
 - 2026-07-07: **Ra soat tinh nang Telegram bot** (viet boi nguoi dung/Codex,
   khong phai Claude Code) theo yeu cau "kiểm tra coi code có đang ổn không".
   Xem chi tiet muc 6n. Tom tat: kien truc tach luong dung nhu mo ta (job
-  Telegram di qua `app/jobs/service.py`, khong dung backend API), sua 1 loi
+  Telegram di qua `worker/jobs/service.py`, khong dung api API), sua 1 loi
   ro ri ket noi DB thuc su (`create_download_job()` tao engine/pool moi moi
   lan goi thay vi dung chung session factory singleton), dep 1 doan
   dead-code kho doc trong `bot.py`, sua 3 loi ruff E501. Nguoi dung xac
@@ -2244,14 +2263,14 @@ LLM - viec sau" o muc 6j):
   (RTX 4050, khong phai sandbox - xac nhan qua `nvidia-smi`), khong chi doc
   HANDOFF ma con chay lai kiem tra thuc te:
   - `pytest` 116/116 pass, `ruff check .` + `ruff format --check .` sach,
-    `cd frontend && npm run build` pass - tat ca chay THAT, khong chi doc code.
+    `cd web && npm run build` pass - tat ca chay THAT, khong chi doc code.
   - `check_env.py` PASS toan bo lan dau tien (xem chi tiet muc 8) - moi truong
     AI (torch/CUDA/faster_whisper/whisperx/pyannote/deepfilternet/
     transformers/edge_tts) da san sang tren may nay.
   - Xac nhan qua git log: khong co commit nao sau `7ac8d43` (2026-07-07,
     Telegram bot) - HANDOFF dang khop 100% voi lich su git, khong bi lech.
   - Phat hien cac khoang trong CHUA tung duoc chay end-to-end that:
-    `phase1_feasibility/samples/` rong (chua co video mau), thu muc `results/`
+    `feasibility/samples/` rong (chua co video mau), thu muc `results/`
     chua ton tai (`run_all.py` chua chay lan nao), `storage/` chi co
     `browser_profile/` (khong co job nao tung chay xong qua web pipeline).
     Docker Desktop dang KHONG chay (`docker ps` loi "cannot connect to
@@ -2271,13 +2290,13 @@ LLM - viec sau" o muc 6j):
   ("streamlit là phần cũ cần phải được clean bỏ, s3 storage đi ko cần đâu
   clean phần đó luôn"):
   - Xac nhan Streamlit CODE da duoc xoa sach tu 2026-07-04 (khong con file
-    `app/pages/`, `app/Home.py`, `app/ui.py`, `.streamlit/` nao) - chi con sot
+    `worker/pages/`, `worker/Home.py`, `worker/ui.py`, `.streamlit/` nao) - chi con sot
     2 dong DEAD trong `start_project.ps1`/`stop_project.ps1`
-    (pattern `"streamlit run app/Home.py"` trong `Stop-DevProcesses`, dung de
+    (pattern `"streamlit run worker/Home.py"` trong `Stop-DevProcesses`, dung de
     tim tien trinh Streamlit cu con chay de kill - khong con tac dung vi
     script do khong con ton tai). Da xoa 2 dong nay.
   - Xoa hoan toan S3 storage abstraction (xem chi tiet muc 6h "Cap nhat
-    2026-07-13"): `app/storage.py`, `tests/test_storage.py`, dependency
+    2026-07-13"): `worker/storage.py`, `tests/test_storage.py`, dependency
     `boto3`, bien env `STORAGE_BACKEND`/`S3_BUCKET`/`S3_PREFIX` (ca `.env` va
     `.env.example`). Xac nhan module nay chua tung duoc goi o dau khac ngoai
     test cua chinh no truoc khi xoa (grep toan repo).
@@ -2294,15 +2313,15 @@ LLM - viec sau" o muc 6j):
 - 2026-07-14 (lan 2): **Lam lai trang "Sua phu de" (Editor) trong UI React**
   - nguoi dung hoi huong phat trien tiep, chon tinh nang nay trong 4 lua
   chon de xuat. Xem chi tiet muc 6o. Tom tat: 5 route moi trong
-  `backend/routers/jobs.py` (GET/PUT `/subtitles/{language}`, POST
+  `api/routers/jobs.py` (GET/PUT `/subtitles/{language}`, POST
   `/translate`, POST `/dub`, GET `/original`), trang moi
-  `frontend/src/pages/Editor.tsx` (3 tab: Chinh sua phu de/Dich/Long tieng
+  `web/src/pages/Editor.tsx` (3 tab: Chinh sua phu de/Dich/Long tieng
   lai, route `/studio/jobs/:id/edit`), nut "Sua phu de" moi trong
   `JobDetail.tsx`. **Phat hien quan trong ve moi truong:** sandbox phien nay
   CO Python that (`D:\hoctap\python\python.exe`, khac mo ta cu trong
   HANDOFF/CLAUDE.md ve sandbox khong Python) - da chay THAT `pytest` (121/121
-  pass, them 8 test moi trong `tests/test_backend_api.py`), `ruff check`
-  sach, `ruff format --check` (phat hien + sua 1 file `app/jobs/stages.py`
+  pass, them 8 test moi trong `tests/test_api_api.py`), `ruff check`
+  sach, `ruff format --check` (phat hien + sua 1 file `worker/jobs/stages.py`
   chua dung format tu truoc, khong lien quan thay doi lan nay), va
   `npm run build` (tsc + vite) pass that qua Node/npm co san. **Chua tu tay
   test qua trinh duyet that** (can Docker Postgres/Redis/Celery worker dang
@@ -2315,12 +2334,12 @@ LLM - viec sau" o muc 6j):
   model that tu HuggingFace (sua 2 loi thuc te gap phai: 401 qua "Xet" ->
   `HF_HUB_DISABLE_XET=1`; thieu `torchaudio` -> cai them), clone giong tu 1
   clip edge-tts sinh ra, xac nhan audio dau ra hop le qua `soundfile`. Tom
-  tat code: adapter moi `subtitle_pipeline/infrastructure/tts_vieneu.py`
+  tat code: adapter moi `pipeline/infrastructure/tts_vieneu.py`
   (`VieNeuCloneSynthesizer`), `DubRenderOptions.custom_voice_ref_audio`
   moi trong `dub.py` (1 giong clone duy nhat cho ca video, khong xoay vong
-  nhu edge-tts), model DB moi `CustomVoice` + `app/voices/repository.py` +
-  router moi `backend/routers/voices.py` (`/api/voices` CRUD, kiem tra chu
-  so huu), trang moi `frontend/src/pages/Voices.tsx` (ghi am qua
+  nhu edge-tts), model DB moi `CustomVoice` + `worker/voices/repository.py` +
+  router moi `api/routers/voices.py` (`/api/voices` CRUD, kiem tra chu
+  so huu), trang moi `web/src/pages/Voices.tsx` (ghi am qua
   `MediaRecorder` + doan van mau, hoac tai file) noi vao NavBar/route
   `/voices`, wizard NewJob + Editor deu them lua chon "Giong da clone".
   **131/131 pytest pass (them 12 test moi), ruff sach, `npm run build`
@@ -2335,10 +2354,10 @@ LLM - viec sau" o muc 6j):
   thay vi ghi de khi chong lan; (2) dich theo ngu canh bang Gemini
   (`translator_gemini.py`, REST qua urllib stdlib, batch 40 cau, tu fallback
   NLLB khi khong co GEMINI_API_KEY hoac API loi); (3) Alembic migration
-  (`alembic.ini` + `migrations/`, baseline 0001 co guard inspector nhan nuoi
-  DB cu, backend startup goi `upgrade head` thay ALTER tay cu). Xem chi tiet
+  (`alembic.ini` + `database_migrations/`, baseline 0001 co guard inspector nhan nuoi
+  DB cu, api startup goi `upgrade head` thay ALTER tay cu). Xem chi tiet
   day du muc 6q moi. **155/155 pytest pass (them 24 test moi), ruff sach,
   `npm run build` pass** - chay THAT tren sandbox co Python. CHUA kiem chung
   tren may that: chua nghe thu audio fit voi video that, chua goi Gemini API
   that (can dien key), chua chay migration tren Postgres that (tu dong khi
-  khoi dong backend lan toi).
+  khoi dong api lan toi).

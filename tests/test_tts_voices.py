@@ -4,12 +4,12 @@ chi kiem tra tinh nhat quan cua bang cau hinh giong.
 
 import pytest
 
-from subtitle_pipeline.infrastructure.translator_nllb import SUPPORTED_LANGUAGES
-from subtitle_pipeline.infrastructure.tts_edge import (
+from pipeline.infrastructure.edge_tts import (
     VOICE_OPTIONS,
     EdgeTTSSynthesizer,
     default_voice,
 )
+from pipeline.infrastructure.nllb_translator import SUPPORTED_LANGUAGES
 
 
 def test_voice_options_cover_all_supported_languages():
@@ -50,7 +50,7 @@ def test_synthesizer_accepts_explicit_voice():
 
 
 def test_voice_catalog_marks_native_voices_recommended_first():
-    from subtitle_pipeline.infrastructure.tts_edge import voice_catalog
+    from pipeline.infrastructure.edge_tts import voice_catalog
 
     catalog = voice_catalog("vi")
 
@@ -62,7 +62,7 @@ def test_voice_catalog_marks_native_voices_recommended_first():
 
 
 def test_voice_catalog_has_gender_and_style():
-    from subtitle_pipeline.infrastructure.tts_edge import voice_catalog
+    from pipeline.infrastructure.edge_tts import voice_catalog
 
     for entry in voice_catalog("vi"):
         assert entry["gender"] in ("nam", "nữ")

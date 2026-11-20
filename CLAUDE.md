@@ -23,4 +23,4 @@ truong dang chay lenh trong phien do) va "may dev that" (RTX 4050 6GB VRAM, noi
 chay/test AI pipeline). Ket luan "khong co GPU/Python" trong HANDOFF.md chi dung
 cho sandbox luc no duoc viet - KHONG mac dinh ap dung cho may ban dang chay hien
 tai. Neu dang chay truc tiep tren may dev that co GPU, hay tu kiem tra lai (vd.
-chay `phase1_feasibility/check_env.py`) thay vi gia dinh khong chay duoc.
+chay `feasibility/check_env.py`) thay vi gia dinh khong chay duoc.

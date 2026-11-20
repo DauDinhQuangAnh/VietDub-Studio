@@ -1,7 +1,7 @@
 # Chuan Code (Python)
 
-Ap dung cho toan bo code Python trong repo (`subtitle_pipeline/`, `app/`,
-`phase1_feasibility/`, `tests/`) - danh cho ca Claude Code va Codex khi
+Ap dung cho toan bo code Python trong repo (`pipeline/`, `worker/`,
+`feasibility/`, `tests/`) - danh cho ca Claude Code va Codex khi
 them/sua code tu thoi diem file nay duoc tao (2026-07-02) tro di. Code cu hon
 co the CHUA tuan thu day du (xem HANDOFF.md muc "Van de dang mo").
 
@@ -33,7 +33,7 @@ co the CHUA tuan thu day du (xem HANDOFF.md muc "Van de dang mo").
 - Import thu vien AI nang (torch, faster_whisper, whisperx, pyannote, df) CHI o
   trong than ham/method, KHONG o top-level module - de cac layer khac
   (domain/, application/, export/) va test cua chung khong bi buoc phai cai
-  dat cac thu vien do (xem vi du trong `subtitle_pipeline/infrastructure/`).
+  dat cac thu vien do (xem vi du trong `pipeline/infrastructure/`).
 - Dependency injection qua constructor/factory khi 1 class phu thuoc tai
   nguyen ben ngoai (model AI, DB session) - xem
   `TranscriptionPipeline.denoiser_factory`, `JobRepository.session_factory` -

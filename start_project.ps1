@@ -5,12 +5,13 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
 function Write-Step($Message) {
-    Write-Host "[start] $Message"
+    Write-Host "[Start Project] $Message" -ForegroundColor Cyan
 }
 
 function Load-EnvFile($Path) {
     if (-not (Test-Path $Path)) {
-        throw "Missing .env file at $Path"
+        Copy-Item (Join-Path $Root ".env.example") $Path
+        Write-Step "Created .env from .env.example"
     }
 
     Get-Content $Path | ForEach-Object {
@@ -20,7 +21,11 @@ function Load-EnvFile($Path) {
         }
 
         $name, $value = $line -split "=", 2
-        [Environment]::SetEnvironmentVariable($name.Trim(), $value.Trim(), "Process")
+        $value = $value.Trim()
+        if ($value.Length -ge 2 -and $value[0] -eq $value[-1] -and $value[0] -in @('"', "'")) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
+        [Environment]::SetEnvironmentVariable($name.Trim(), $value, "Process")
     }
 }
 
@@ -31,62 +36,279 @@ function Invoke-NativeQuiet($Command) {
     try {
         & $Command 1>$null 2>$null
         return $LASTEXITCODE
+    } catch {
+        return 1
     } finally {
         $ErrorActionPreference = $previousErrorActionPreference
     }
 }
 
-function Wait-DockerReady {
-    for ($i = 0; $i -lt 40; $i++) {
-        if ((Invoke-NativeQuiet { docker info }) -eq 0) {
-            return
+function Resolve-PythonExe {
+    $pythonLauncher = Get-Command "py.exe" -ErrorAction SilentlyContinue
+    if ($pythonLauncher) {
+        foreach ($version in @("3.12", "3.11")) {
+            try {
+                $candidate = & $pythonLauncher.Source "-$version" -c "import sys; print(sys.executable)" 2>$null
+                if ($LASTEXITCODE -eq 0 -and $candidate) {
+                    return ($candidate | Select-Object -Last 1).Trim()
+                }
+            } catch {
+                continue
+            }
         }
-        Start-Sleep -Seconds 3
     }
-    throw "Docker engine is not ready."
+
+    $pythonCommand = Get-Command "python.exe" -ErrorAction SilentlyContinue
+    if ($pythonCommand) {
+        try {
+            $candidate = & $pythonCommand.Source -c "import sys; print(sys.executable if sys.version_info >= (3, 11) else '')" 2>$null
+            if ($LASTEXITCODE -eq 0 -and $candidate) {
+                return ($candidate | Select-Object -Last 1).Trim()
+            }
+        } catch {
+            # Microsoft Store aliases can exist on PATH without a Python install.
+        }
+    }
+
+    throw "Python 3.11 or newer was not found. Install Python from python.org, then run Start Project.bat again."
+}
+
+function Ensure-PythonEnvironment {
+    $python = Join-Path $Root ".venv\Scripts\python.exe"
+    if (-not (Test-Path $python)) {
+        $basePython = Resolve-PythonExe
+        Write-Step "Creating the project Python environment"
+        & $basePython -m venv (Join-Path $Root ".venv")
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not create .venv with $basePython."
+        }
+    }
+
+    $requirementsHash = (Get-FileHash (Join-Path $Root "requirements.txt") -Algorithm SHA256).Hash
+    $hashFile = Join-Path $Root ".venv\requirements.sha256"
+    $installedHash = if (Test-Path $hashFile) { (Get-Content $hashFile -Raw).Trim() } else { "" }
+    if ($installedHash -ne $requirementsHash) {
+        Write-Step "Installing Python packages (first run can take a while)"
+        & $python -m pip install --disable-pip-version-check --upgrade pip
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not upgrade pip."
+        }
+        & $python -m pip install --disable-pip-version-check --prefer-binary -r (Join-Path $Root "requirements.txt")
+        if ($LASTEXITCODE -ne 0) {
+            throw "Python package installation failed. See the error above, fix it, then run Start Project.bat again."
+        }
+        Set-Content -Path $hashFile -Value $requirementsHash -Encoding ASCII
+    }
+
+    return $python
+}
+
+function Ensure-NodeRuntime {
+    $systemNpm = Get-Command "npm.cmd" -ErrorAction SilentlyContinue
+    if ($systemNpm) {
+        $systemNode = Get-Command "node.exe" -ErrorAction SilentlyContinue
+        if ($systemNode) {
+            return [pscustomobject]@{ Node = $systemNode.Source; Npm = $systemNpm.Source }
+        }
+    }
+
+    $toolsDir = Join-Path $Root ".tools\node"
+    $localNpm = Get-ChildItem $toolsDir -Filter "npm.cmd" -File -Recurse -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($localNpm) {
+        return [pscustomobject]@{
+            Node = Join-Path $localNpm.DirectoryName "node.exe"
+            Npm = $localNpm.FullName
+        }
+    }
+
+    $architecture = if ($env:PROCESSOR_ARCHITEW6432) {
+        $env:PROCESSOR_ARCHITEW6432
+    } else {
+        $env:PROCESSOR_ARCHITECTURE
+    }
+    $nodeArchitecture = switch ($architecture.ToUpperInvariant()) {
+        "ARM64" { "arm64" }
+        "AMD64" { "x64" }
+        default { throw "Unsupported Windows architecture for the bundled Node.js runtime: $architecture" }
+    }
+
+    Write-Step "Downloading a portable Node.js runtime for the web interface"
+    $releases = Invoke-RestMethod "https://nodejs.org/dist/index.json"
+    $release = $releases |
+        Where-Object { $_.lts -and $_.files -contains "win-$nodeArchitecture-zip" } |
+        Select-Object -First 1
+    if (-not $release) {
+        throw "Could not find a supported Node.js LTS download for Windows $nodeArchitecture."
+    }
+
+    $null = New-Item -ItemType Directory -Force $toolsDir
+    $archive = Join-Path $toolsDir "node-$($release.version)-win-$nodeArchitecture.zip"
+    $url = "https://nodejs.org/dist/$($release.version)/node-$($release.version)-win-$nodeArchitecture.zip"
+    Invoke-WebRequest -Uri $url -OutFile $archive
+    Expand-Archive -LiteralPath $archive -DestinationPath $toolsDir -Force
+    Remove-Item $archive -Force
+
+    $localNpm = Get-ChildItem $toolsDir -Filter "npm.cmd" -File -Recurse | Select-Object -First 1
+    if (-not $localNpm -or -not (Test-Path (Join-Path $localNpm.DirectoryName "node.exe"))) {
+        throw "The downloaded Node.js archive did not contain node.exe and npm.cmd."
+    }
+    return [pscustomobject]@{
+        Node = Join-Path $localNpm.DirectoryName "node.exe"
+        Npm = $localNpm.FullName
+    }
+}
+
+function Ensure-FfmpegRuntime {
+    $systemFfmpeg = Get-Command "ffmpeg.exe" -ErrorAction SilentlyContinue
+    $systemFfprobe = Get-Command "ffprobe.exe" -ErrorAction SilentlyContinue
+    if ($systemFfmpeg -and $systemFfprobe) {
+        return Split-Path $systemFfmpeg.Source
+    }
+
+    $toolsBin = Join-Path $Root ".tools\ffmpeg\bin"
+    if ((Test-Path (Join-Path $toolsBin "ffmpeg.exe")) -and (Test-Path (Join-Path $toolsBin "ffprobe.exe"))) {
+        return $toolsBin
+    }
+
+    Write-Step "Downloading portable FFmpeg (needed to process audio/video)"
+    $null = New-Item -ItemType Directory -Force $toolsBin
+    $archivePath = Join-Path $Root ".tools\ffmpeg-release-essentials.zip"
+    Invoke-WebRequest `
+        -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" `
+        -OutFile $archivePath
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
+    try {
+        foreach ($entry in $archive.Entries) {
+            if ($entry.FullName -match "(^|/)bin/(ffmpeg|ffprobe)\.exe$") {
+                $destination = Join-Path $toolsBin $entry.Name
+                $sourceStream = $entry.Open()
+                $destinationStream = [System.IO.File]::Create($destination)
+                try {
+                    $sourceStream.CopyTo($destinationStream)
+                } finally {
+                    $destinationStream.Dispose()
+                    $sourceStream.Dispose()
+                }
+            }
+        }
+    } finally {
+        $archive.Dispose()
+        Remove-Item $archivePath -Force
+    }
+
+    if (-not (Test-Path (Join-Path $toolsBin "ffmpeg.exe")) -or -not (Test-Path (Join-Path $toolsBin "ffprobe.exe"))) {
+        throw "The FFmpeg download did not contain both ffmpeg.exe and ffprobe.exe."
+    }
+    return $toolsBin
 }
 
 function Start-DockerDesktopIfNeeded {
+    $docker = Get-Command "docker.exe" -ErrorAction SilentlyContinue
+    if (-not $docker) {
+        return $false
+    }
     if ((Invoke-NativeQuiet { docker info }) -eq 0) {
+        return $true
+    }
+
+    $desktopPaths = @(
+        "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe",
+        "$env:LOCALAPPDATA\Programs\Docker\Docker\Docker Desktop.exe"
+    )
+    $desktop = $desktopPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $desktop) {
+        return $false
+    }
+
+    Write-Step "Starting Docker Desktop"
+    Start-Process -FilePath $desktop -WindowStyle Hidden
+    for ($i = 0; $i -lt 30; $i++) {
+        if ((Invoke-NativeQuiet { docker info }) -eq 0) {
+            return $true
+        }
+        Start-Sleep -Seconds 2
+    }
+    return $false
+}
+
+function Wait-DockerService($Service, $Command) {
+    for ($i = 0; $i -lt 30; $i++) {
+        if ((Invoke-NativeQuiet { docker compose exec -T $Service $Command }) -eq 0) {
+            return $true
+        }
+        Start-Sleep -Seconds 2
+    }
+    return $false
+}
+
+function Get-LocalDatabaseUrl {
+    $databasePath = (Join-Path $Root "storage\app.db").Replace("\", "/")
+    return "sqlite:///$databasePath"
+}
+
+function Select-Infrastructure {
+    $mode = if ($env:INFRA_MODE) { $env:INFRA_MODE.Trim().ToLowerInvariant() } else { "auto" }
+    if ($mode -eq "local") {
+        $env:DATABASE_URL = Get-LocalDatabaseUrl
+        $env:REDIS_URL = ""
+        Write-Step "Using SQLite files in storage/; Docker is not needed"
         return
     }
-
-    $dockerDesktop = "C:\Program Files\Docker\Docker\Docker Desktop.exe"
-    if (Test-Path $dockerDesktop) {
-        Write-Step "Starting Docker Desktop"
-        Start-Process -FilePath $dockerDesktop -WindowStyle Hidden
+    if ($mode -eq "custom") {
+        if (-not $env:DATABASE_URL) {
+            throw "INFRA_MODE=custom requires DATABASE_URL in .env."
+        }
+        Write-Step "Using the database and queue configured in .env"
+        return
+    }
+    if ($mode -notin @("auto", "docker")) {
+        throw "INFRA_MODE must be auto, local, docker, or custom."
     }
 
-    Wait-DockerReady
+    $dockerReady = Start-DockerDesktopIfNeeded
+    if ($dockerReady) {
+        $composeExitCode = Invoke-NativeQuiet { docker compose up -d postgres redis }
+        if ($composeExitCode -eq 0) {
+            $postgresReady = Wait-DockerService "postgres" @(
+                "pg_isready", "-U", "subtitle_studio", "-d", "subtitle_studio"
+            )
+            $redisReady = Wait-DockerService "redis" @("redis-cli", "ping")
+            if ($postgresReady -and $redisReady) {
+                $env:DATABASE_URL = "postgresql+psycopg2://subtitle_studio:subtitle_studio@localhost:15432/subtitle_studio"
+                $env:REDIS_URL = "redis://localhost:6379/0"
+                Write-Step "Docker is ready; using its PostgreSQL and Redis services"
+                return
+            }
+        }
+    }
+
+    if ($mode -eq "docker") {
+        throw "Docker was required but its database services could not start. Check Docker Desktop and run Start Project again."
+    }
+
+    $env:DATABASE_URL = Get-LocalDatabaseUrl
+    $env:REDIS_URL = ""
+    Write-Warning "Docker is unavailable; using SQLite database and task queue files in storage/."
 }
 
 function Stop-DevProcesses {
     $allProcesses = @(Get-CimInstance Win32_Process)
     $patterns = @(
-        "celery -A app.jobs.celery_app",
-        "uvicorn backend.main:app",
-        "frontend\\node_modules",
-        "frontend/node_modules",
-        "frontend\\node_modules\\vite",
-        "frontend/node_modules/vite",
+        "celery -A worker.jobs.celery_app",
+        "uvicorn api.main:app",
+        "web\node_modules",
+        "web/node_modules",
         "npm-cli.js run dev",
         "vite --host localhost --port 5173"
     )
-
     $targetIds = @{}
     $targets = $allProcesses | Where-Object {
         $commandLine = $_.CommandLine
         if (-not $commandLine) {
             return $false
-        }
-        if ($_.Name -like "python*" -and $commandLine -like "*multiprocessing.spawn*spawn_main*") {
-            return $true
-        }
-        if (
-            $commandLine -like "*$Root*" -and
-            $_.Name -in @("python.exe", "pythonw.exe", "python3.12.exe", "node.exe", "cmd.exe", "esbuild.exe")
-        ) {
-            return $true
         }
         foreach ($pattern in $patterns) {
             if ($commandLine -like "*$pattern*") {
@@ -99,7 +321,6 @@ function Stop-DevProcesses {
     foreach ($process in $targets) {
         $targetIds[$process.ProcessId] = $true
     }
-
     do {
         $changed = $false
         foreach ($process in $allProcesses) {
@@ -111,58 +332,29 @@ function Stop-DevProcesses {
     } while ($changed)
 
     foreach ($processId in $targetIds.Keys) {
-        Write-Step "Stopping stale PID $processId"
         Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
     }
 }
 
-function Stop-LegacyPostgresContainer {
-    $legacy = docker ps --filter "name=^/testai-postgres-15432$" --format "{{.Names}}"
-    if ($legacy) {
-        Write-Step "Stopping legacy Postgres container testai-postgres-15432"
-        Invoke-NativeQuiet { docker stop testai-postgres-15432 } | Out-Null
-    }
+function Start-LoggedProcess($Name, $FilePath, $ArgumentList, $WorkingDirectory) {
+    $stdout = Join-Path $Root "$Name.out.log"
+    $stderr = Join-Path $Root "$Name.err.log"
+    Write-Step "Starting $Name"
+    return Start-Process -FilePath $FilePath `
+        -ArgumentList $ArgumentList `
+        -WorkingDirectory $WorkingDirectory `
+        -RedirectStandardOutput $stdout `
+        -RedirectStandardError $stderr `
+        -WindowStyle Hidden `
+        -PassThru
 }
 
-function Wait-PostgresReady {
+function Wait-HttpReady($Url, $Name, $Process, $ErrorLog) {
     for ($i = 0; $i -lt 40; $i++) {
-        if ((Invoke-NativeQuiet { docker compose exec -T postgres pg_isready -U subtitle_studio -d subtitle_studio }) -eq 0) {
-            return
+        if ($Process.HasExited) {
+            $details = if (Test-Path $ErrorLog) { Get-Content $ErrorLog -Raw } else { "" }
+            throw "$Name stopped during startup. $details"
         }
-        Start-Sleep -Seconds 2
-    }
-    throw "Postgres did not become ready."
-}
-
-function Wait-RedisReady {
-    for ($i = 0; $i -lt 40; $i++) {
-        if ((Invoke-NativeQuiet { docker compose exec -T redis redis-cli ping }) -eq 0) {
-            return
-        }
-        Start-Sleep -Seconds 2
-    }
-    throw "Redis did not become ready."
-}
-
-function Find-FfmpegBin {
-    $candidates = @()
-    $candidates += ($env:Path -split ";")
-    $candidates += "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.2-full_build\bin"
-
-    foreach ($path in $candidates) {
-        if (-not $path) {
-            continue
-        }
-        if (Test-Path (Join-Path $path "ffmpeg.exe")) {
-            return $path
-        }
-    }
-
-    throw "ffmpeg.exe was not found. Install FFmpeg or update PATH."
-}
-
-function Wait-HttpReady($Url, $Name) {
-    for ($i = 0; $i -lt 40; $i++) {
         try {
             $response = Invoke-WebRequest -UseBasicParsing $Url -TimeoutSec 3
             if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
@@ -175,89 +367,68 @@ function Wait-HttpReady($Url, $Name) {
     throw "$Name did not become ready at $Url."
 }
 
-function Start-LoggedProcess($Name, $FilePath, $ArgumentList, $WorkingDirectory) {
-    $stdout = Join-Path $Root "$Name.out.log"
-    $stderr = Join-Path $Root "$Name.err.log"
-
-    Write-Step "Starting $Name"
-    return Start-Process -FilePath $FilePath `
-        -ArgumentList $ArgumentList `
-        -WorkingDirectory $WorkingDirectory `
-        -RedirectStandardOutput $stdout `
-        -RedirectStandardError $stderr `
-        -WindowStyle Hidden `
-        -PassThru
-}
-
-$python = Join-Path $Root ".venv\Scripts\python.exe"
-if (-not (Test-Path $python)) {
-    throw "Missing virtualenv Python at $python. Create .venv and install requirements first."
-}
-
-$npm = (Get-Command "npm.cmd" -ErrorAction SilentlyContinue).Source
-if (-not $npm) {
-    throw "npm.cmd was not found. Install Node.js before starting the React frontend."
-}
-
-Write-Step "Loading .env"
 Load-EnvFile (Join-Path $Root ".env")
+$env:PYTHONIOENCODING = "utf-8"
+$env:PIP_DISABLE_PIP_VERSION_CHECK = "1"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-Write-Step "Preparing PATH"
-$ffmpegBin = Find-FfmpegBin
+$python = Ensure-PythonEnvironment
+$nodeRuntime = Ensure-NodeRuntime
+$ffmpegBin = Ensure-FfmpegRuntime
 $torchLib = Join-Path $Root ".venv\Lib\site-packages\torch\lib"
 $ctranslate2Lib = Join-Path $Root ".venv\Lib\site-packages\ctranslate2"
-$env:PATH = "$ffmpegBin;$torchLib;$ctranslate2Lib;$env:PATH"
-$env:PYTHONIOENCODING = "utf-8"
+$env:PATH = "$ffmpegBin;$($nodeRuntime.Node | Split-Path);$torchLib;$ctranslate2Lib;$env:PATH"
 
-Write-Step "Stopping stale dev processes"
+Select-Infrastructure
+
+Write-Step "Stopping any previous VietDub Studio processes"
 Stop-DevProcesses
 Start-Sleep -Seconds 1
 
-Write-Step "Starting infrastructure"
-Start-DockerDesktopIfNeeded
-Stop-LegacyPostgresContainer
-docker compose up -d | Out-Null
-Wait-PostgresReady
-Wait-RedisReady
-
-Write-Step "Preparing frontend dependencies"
-$frontendDir = Join-Path $Root "frontend"
-if (-not (Test-Path (Join-Path $frontendDir "node_modules"))) {
-    & $npm install --prefix $frontendDir
+$webDir = Join-Path $Root "web"
+$packageHash = (Get-FileHash (Join-Path $webDir "package-lock.json") -Algorithm SHA256).Hash
+$packageHashFile = Join-Path $Root ".tools\web-package-lock.sha256"
+$installedPackageHash = if (Test-Path $packageHashFile) { (Get-Content $packageHashFile -Raw).Trim() } else { "" }
+if (-not (Test-Path (Join-Path $webDir "node_modules")) -or $installedPackageHash -ne $packageHash) {
+    Write-Step "Installing web interface packages"
+    & $nodeRuntime.Npm ci --prefix $webDir --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) {
-        throw "npm install failed."
+        throw "Web package installation failed."
     }
+    $null = New-Item -ItemType Directory -Force (Split-Path $packageHashFile)
+    Set-Content -Path $packageHashFile -Value $packageHash -Encoding ASCII
 }
 
-Write-Step "Clearing old logs"
-Remove-Item (Join-Path $Root "*.log") -Force -ErrorAction SilentlyContinue
+foreach ($logName in @("api.out.log", "api.err.log", "celery.out.log", "celery.err.log", "web.out.log", "web.err.log")) {
+    Remove-Item (Join-Path $Root $logName) -Force -ErrorAction SilentlyContinue
+}
+Write-Step "Starting the API and applying database migrations"
+$api = Start-LoggedProcess `
+    -Name "api" `
+    -FilePath $python `
+    -ArgumentList @("-m", "uvicorn", "api.main:app", "--host", "localhost", "--port", "8000") `
+    -WorkingDirectory $Root
+Wait-HttpReady "http://localhost:8000/api/health" "API" $api (Join-Path $Root "api.err.log")
 
 $celery = Start-LoggedProcess `
     -Name "celery" `
     -FilePath $python `
-    -ArgumentList @("-m", "celery", "-A", "app.jobs.celery_app", "worker", "--loglevel=info", "--pool=solo") `
+    -ArgumentList @("-m", "celery", "-A", "worker.jobs.celery_app", "worker", "--loglevel=info", "--pool=solo") `
     -WorkingDirectory $Root
-
-$backend = Start-LoggedProcess `
-    -Name "backend" `
-    -FilePath $python `
-    -ArgumentList @("-m", "uvicorn", "backend.main:app", "--host", "localhost", "--port", "8000", "--reload") `
-    -WorkingDirectory $Root
-
-$frontend = Start-LoggedProcess `
-    -Name "frontend" `
-    -FilePath $npm `
+$web = Start-LoggedProcess `
+    -Name "web" `
+    -FilePath $nodeRuntime.Npm `
     -ArgumentList @("run", "dev", "--", "--host", "localhost", "--port", "5173") `
-    -WorkingDirectory $frontendDir
-
-Wait-HttpReady "http://localhost:8000/api/health" "FastAPI backend"
-Wait-HttpReady "http://localhost:5173" "Vite frontend"
+    -WorkingDirectory $webDir
+Wait-HttpReady "http://localhost:5173" "Web interface" $web (Join-Path $Root "web.err.log")
 
 Write-Host ""
-Write-Host "AI Subtitle Studio is running."
-Write-Host "Frontend: http://localhost:5173"
-Write-Host "Backend API: http://localhost:8000/api/health"
-Write-Host "Celery PID: $($celery.Id)"
-Write-Host "Backend PID: $($backend.Id)"
-Write-Host "Frontend PID: $($frontend.Id)"
-Write-Host "Logs: backend.*.log, celery.*.log, frontend.*.log"
+Write-Host "VietDub Studio is ready: http://localhost:5173" -ForegroundColor Green
+Write-Host "Database: $env:DATABASE_URL"
+if ($env:REDIS_URL) {
+    Write-Host "Task queue: Docker Redis"
+} else {
+    Write-Host "Task queue: SQLite in storage/"
+}
+Write-Host "Logs: api.*.log, celery.*.log, web.*.log"
+Start-Process "http://localhost:5173"

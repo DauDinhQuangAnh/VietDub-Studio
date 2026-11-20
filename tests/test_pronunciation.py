@@ -2,7 +2,7 @@
 can model TTS that. Xac nhan file mac dinh JSON co that + duoc doc dung.
 """
 
-from subtitle_pipeline.application.pronunciation import (
+from pipeline.application.pronunciation import (
     apply_pronunciation,
     load_default_pronunciation,
     parse_pronunciation_overrides,

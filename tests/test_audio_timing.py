@@ -2,7 +2,7 @@
 
 import pytest
 
-from subtitle_pipeline.infrastructure.audio_timing import _clamp_atempo_factors
+from pipeline.infrastructure.audio_timing import _clamp_atempo_factors
 
 
 def _product(factors: list[float]) -> float:
@@ -38,7 +38,7 @@ def test_zero_or_negative_factor_raises():
 def test_trim_command_cuts_first_seconds_with_stream_copy():
     from pathlib import Path
 
-    from subtitle_pipeline.infrastructure.audio import _build_trim_command
+    from pipeline.infrastructure.media_audio import _build_trim_command
 
     cmd = _build_trim_command(Path("in.mp4"), Path("out.mp4"), 60)
 

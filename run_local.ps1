@@ -48,10 +48,10 @@ if (-not $npm) {
     Write-Error "Khong tim thay Node.js / npm.cmd tren may."
     exit 1
 }
-$frontendDir = Join-Path $Root "frontend"
-if (-not (Test-Path (Join-Path $frontendDir "node_modules"))) {
-    Write-Host "Dang cai dat dependencies frontend (npm install)..." -ForegroundColor Yellow
-    Set-Location $frontendDir
+$webDir = Join-Path $Root "web"
+if (-not (Test-Path (Join-Path $webDir "node_modules"))) {
+    Write-Host "Dang cai dat dependencies web (npm install)..." -ForegroundColor Yellow
+    Set-Location $webDir
     & $npm install
     Set-Location $Root
 }
@@ -59,18 +59,18 @@ if (-not (Test-Path (Join-Path $frontendDir "node_modules"))) {
 Write-Host "`nDang khoi dong cac tien trinh nen..." -ForegroundColor Cyan
 
 # Khoi dong Celery Worker
-$celeryCmd = "cd '$Root'; & '$python' -m celery -A app.jobs.celery_app worker --loglevel=info --pool=solo"
+$celeryCmd = "cd '$Root'; & '$python' -m celery -A worker.jobs.celery_app worker --loglevel=info --pool=solo"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "$celeryCmd" -WindowStyle Minimized
 Write-Host "✓ Celery Worker da khoi dong." -ForegroundColor Green
 
 # Khoi dong FastAPI Backend
-$backendCmd = "cd '$Root'; & '$python' -m uvicorn backend.main:app --host localhost --port 8000 --reload"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "$backendCmd" -WindowStyle Minimized
+$apiCmd = "cd '$Root'; & '$python' -m uvicorn api.main:app --host localhost --port 8000 --reload"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "$apiCmd" -WindowStyle Minimized
 Write-Host "✓ FastAPI Backend da khoi dong (http://localhost:8000)." -ForegroundColor Green
 
 # Khoi dong Frontend Vite Dev
-$frontendCmd = "cd '$frontendDir'; & '$npm' run dev -- --host localhost --port 5173"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "$frontendCmd" -WindowStyle Minimized
+$webCmd = "cd '$webDir'; & '$npm' run dev -- --host localhost --port 5173"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "$webCmd" -WindowStyle Minimized
 Write-Host "✓ Vite Frontend da khoi dong (http://localhost:5173)." -ForegroundColor Green
 
 Write-Host "`n==========================================================" -ForegroundColor Cyan

@@ -9,7 +9,7 @@ dau ra hop le) - xem HANDOFF.md muc 6p, khong lap lai o day vi can tai model
 import numpy as np
 import soundfile as sf
 
-from subtitle_pipeline.infrastructure.tts_vieneu import probe_reference_seconds
+from pipeline.infrastructure.vieneu_tts import probe_reference_seconds
 
 
 def test_probe_reference_seconds_returns_correct_duration(tmp_path):

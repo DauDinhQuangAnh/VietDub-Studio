@@ -6,7 +6,7 @@ moi truong khong co GPU (xem docs/memory/dev-machine-rtx4050.md).
 
 from pathlib import Path
 
-from subtitle_pipeline.domain.models import SpeakerTurn, SubtitleSegment, TranscriptSegment
+from pipeline.domain.subtitle_types import SpeakerTurn, SubtitleSegment, TranscriptSegment
 
 
 class FakeDenoiser:

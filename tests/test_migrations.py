@@ -8,7 +8,8 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
-from app.db.models import Base
+from api.main import _run_database_migrations
+from worker.db.database_models import Base
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -116,5 +117,25 @@ def test_migration_schema_matches_orm_models(tmp_path, monkeypatch):
             migrated_columns = {col["name"] for col in inspector.get_columns(table_name)}
             orm_columns = {col.name for col in table.columns}
             assert migrated_columns == orm_columns, f"Lech cot o bang {table_name}"
+    finally:
+        engine.dispose()
+
+
+def test_api_startup_applies_migrations_to_sqlite(tmp_path, monkeypatch):
+    database_url = _sqlite_url(tmp_path, "api-startup.db")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+
+    _run_database_migrations()
+
+    engine = sa.create_engine(database_url)
+    try:
+        assert {"jobs", "custom_voices", "alembic_version"} <= set(
+            sa.inspect(engine).get_table_names()
+        )
+        with engine.connect() as connection:
+            version = connection.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one()
+        assert version == "0002_remove_auth"
     finally:
         engine.dispose()

@@ -33,14 +33,14 @@ xem ghi chu o cuoi file nay).
   lon hon 16GB+ de giu model resident va xu ly concurrent).
 
 Chi tiet ket qua do dac VRAM/thoi gian thuc te cho tung buoc pipeline nam trong
-`HANDOFF.md` (muc 6, do `phase1_feasibility/summarize_results.py` tu dong cap
+`HANDOFF.md` (muc 6, do `feasibility/summarize_results.py` tu dong cap
 nhat).
 
 ## Luu y cho AI coding assistant (Claude Code / Codex) doc file nay
 
 - Neu ban dang chay lenh TRUC TIEP tren may co cau hinh nhu tren (co GPU that),
-  ban CO THE tu chay/test cac script trong `phase1_feasibility/` - hay tu kiem
-  tra bang `python phase1_feasibility/check_env.py` truoc khi ket luan gi.
+  ban CO THE tu chay/test cac script trong `feasibility/` - hay tu kiem
+  tra bang `python feasibility/check_env.py` truoc khi ket luan gi.
 - Neu ban dang chay trong 1 sandbox/container rieng (vi du moi truong cloud cua
   Claude Code khong gan voi may vat ly nay) thi co the KHONG co GPU/Python that -
   trong truong hop do, chi viet code, KHONG gia dinh minh chay/test duoc, va de

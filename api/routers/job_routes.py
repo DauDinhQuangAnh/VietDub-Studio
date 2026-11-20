@@ -1,0 +1,360 @@
+"""CRUD job + file ket qua. Logic tao job/tao lai/nhom file port 1:1 tu
+wizard Streamlit cu (worker/pages/1_Upload.py, 2_Dashboard.py) - options dict
+giu NGUYEN schema nen Celery worker khong doi gi.
+"""
+
+import json
+import shutil
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+
+from api.api_schemas import (
+    DubJobIn,
+    FileOut,
+    JobFilesOut,
+    JobOut,
+    SubtitleGroupOut,
+    SubtitleSegmentOut,
+    TranslateJobIn,
+    UpdateSubtitlesIn,
+    VideoAnalyzeIn,
+    VideoMetadataOut,
+    VideoOut,
+)
+from api.database import job_repo
+from pipeline.domain.subtitle_types import SubtitleSegment
+from pipeline.export.subtitle_export import FORMAT_WRITERS
+from pipeline.infrastructure.media_downloader import analyze_video, sanitize_filename
+from worker.config import AppConfig
+from worker.db.database_models import Job, JobStatus
+from worker.jobs.job_tasks import dub_job, process_video_job, translate_job
+
+router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+ALLOWED_EXTENSIONS = {"mp4", "mkv", "mov", "wav", "mp3", "m4a"}
+MAX_FILE_SIZE_MB = 500
+_INTERNAL_SUFFIXES = (".source_language.txt",)
+_VIDEO_SUFFIXES = {".mp4", ".mkv", ".mov", ".webm"}
+_DOWNLOAD_QUALITIES = {"best", "1080p", "720p", "480p"}
+
+
+def _write_job_config(job_dir: Path, options: dict) -> None:
+    (job_dir / "job_config.json").write_text(
+        json.dumps(options, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+def _get_job(job_id: str) -> Job:
+    job = job_repo().get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy job")
+    return job
+
+
+def _create_job_from_options(options: dict, upload: UploadFile | None = None) -> Job:
+    job_id = str(uuid.uuid4())
+    job_dir = AppConfig.from_env().storage_dir / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+    source = options.get("source") or {}
+    download = source.get("download") or {}
+
+    if upload is not None and upload.filename:
+        extension = upload.filename.rsplit(".", 1)[-1].lower()
+        if extension not in ALLOWED_EXTENSIONS:
+            raise HTTPException(status_code=400, detail=f"Định dạng '.{extension}' không hềEtrợ")
+        data = upload.file.read()
+        if len(data) > MAX_FILE_SIZE_MB * 1024 * 1024:
+            raise HTTPException(status_code=400, detail=f"File quá {MAX_FILE_SIZE_MB}MB")
+        filename = sanitize_filename(Path(upload.filename).name)
+        input_path = job_dir / filename
+        input_path.write_bytes(data)
+        source["input_mode"] = "upload"
+        source.pop("download", None)
+        options["source"] = source
+    elif download.get("url"):
+        quality = download.get("quality", "best")
+        if quality not in _DOWNLOAD_QUALITIES:
+            raise HTTPException(status_code=400, detail="Chất lượng tải video không hợp lệ")
+        filename = f"{sanitize_filename(download.get('title') or 'downloaded-video')}.mp4"
+        input_path = job_dir / filename
+        source["input_mode"] = "download"
+        source["download"] = {
+            "url": download["url"],
+            "quality": quality,
+            "title": download.get("title"),
+        }
+        options["source"] = source
+    else:
+        raise HTTPException(status_code=400, detail="Cần file upload hoặc link video")
+
+    _write_job_config(job_dir, options)
+    job = job_repo().create(
+        filename=filename,
+        input_path=input_path,
+        output_dir=job_dir / "output",
+        job_id=job_id,
+    )
+    process_video_job.delay(job.id, options)
+    return job
+
+
+@router.post("/source/analyze", response_model=VideoMetadataOut)
+def analyze_source(body: VideoAnalyzeIn) -> VideoMetadataOut:
+    try:
+        metadata = analyze_video(body.url)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return VideoMetadataOut(
+        url=metadata.url,
+        title=metadata.title,
+        thumbnail=metadata.thumbnail,
+        duration=metadata.duration,
+        uploader=metadata.uploader,
+        source=metadata.source,
+        qualities=[
+            {"id": quality.id, "label": quality.label, "format": quality.format}
+            for quality in metadata.qualities
+        ],
+    )
+
+
+@router.post("", response_model=JobOut)
+def create_job(
+    options: str = Form(...),
+    file: UploadFile | None = File(default=None),
+) -> JobOut:
+    try:
+        parsed = json.loads(options)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"options không phải JSON: {exc}") from exc
+    return JobOut.from_job(_create_job_from_options(parsed, file))
+
+
+@router.get("", response_model=list[JobOut])
+def list_jobs() -> list[JobOut]:
+    return [JobOut.from_job(j) for j in job_repo().list_all()]
+
+
+@router.get("/{job_id}", response_model=JobOut)
+def get_job(job_id: str) -> JobOut:
+    return JobOut.from_job(_get_job(job_id))
+
+
+@router.delete("/{job_id}")
+def delete_job(job_id: str) -> dict:
+    job = _get_job(job_id)
+    shutil.rmtree(Path(job.output_dir).parent, ignore_errors=True)
+    job_repo().delete(job.id)
+    return {"deleted": job_id}
+
+
+@router.post("/{job_id}/rerun", response_model=JobOut)
+def rerun_job(job_id: str) -> JobOut:
+    job = _get_job(job_id)
+    config_path = Path(job.output_dir).parent / "job_config.json"
+    if not config_path.exists():
+        raise HTTPException(status_code=400, detail="Job này không có job_config.json để tạo lại")
+    options = json.loads(config_path.read_text(encoding="utf-8"))
+
+    new_id = str(uuid.uuid4())
+    new_dir = AppConfig.from_env().storage_dir / new_id
+    new_dir.mkdir(parents=True, exist_ok=True)
+
+    source = options.get("source") or {}
+    if source.get("input_mode") == "download" and (source.get("download") or {}).get("url"):
+        filename = Path(job.input_path).name
+        input_path = new_dir / filename
+    else:
+        source_file = Path(job.input_path)
+        if not source_file.exists():
+            raise HTTPException(status_code=400, detail="File gốc không còn trên đĩa")
+        filename = source_file.name
+        input_path = new_dir / filename
+        shutil.copy2(source_file, input_path)
+
+    _write_job_config(new_dir, options)
+    new_job = job_repo().create(
+        filename=filename,
+        input_path=input_path,
+        output_dir=new_dir / "output",
+        job_id=new_id,
+    )
+    process_video_job.delay(new_job.id, options)
+    return JobOut.from_job(new_job)
+
+
+def _subtitle_json_path(job: Job, language: str) -> Path:
+    suffix = "" if language == "goc" else f".{language}"
+    return Path(job.output_dir) / f"{Path(job.input_path).stem}{suffix}.json"
+
+
+@router.get("/{job_id}/subtitles/{language}", response_model=list[SubtitleSegmentOut])
+def get_subtitles(job_id: str, language: str) -> list[SubtitleSegmentOut]:
+    job = _get_job(job_id)
+    path = _subtitle_json_path(job, language)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Không tìm thấy phụ đề cho ngôn ngữ này")
+    return [SubtitleSegmentOut(**seg) for seg in json.loads(path.read_text(encoding="utf-8"))]
+
+
+@router.put("/{job_id}/subtitles/{language}")
+def update_subtitles(job_id: str, language: str, body: UpdateSubtitlesIn) -> dict:
+    job = _get_job(job_id)
+    path = _subtitle_json_path(job, language)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Không tìm thấy phụ đề cho ngôn ngữ này")
+    segments = [
+        SubtitleSegment(start=s.start, end=s.end, text=s.text, speaker=s.speaker)
+        for s in body.segments
+    ]
+    suffix = "" if language == "goc" else f".{language}"
+    stem = f"{Path(job.input_path).stem}{suffix}"
+    out_dir = Path(job.output_dir)
+    for fmt, writer in FORMAT_WRITERS.items():
+        (out_dir / f"{stem}.{fmt}").write_text(writer(segments), encoding="utf-8")
+    return {"saved": len(segments)}
+
+
+@router.post("/{job_id}/translate")
+def translate_job_endpoint(job_id: str, body: TranslateJobIn) -> dict:
+    job = _get_job(job_id)
+    if job.status != JobStatus.DONE:
+        raise HTTPException(status_code=400, detail="Job chưa xử lý xong")
+    translate_job.delay(job.id, body.target_language)
+    return {"queued": True}
+
+
+@router.post("/{job_id}/dub")
+def dub_job_endpoint(job_id: str, body: DubJobIn) -> dict:
+    job = _get_job(job_id)
+    if job.status != JobStatus.DONE:
+        raise HTTPException(status_code=400, detail="Job chưa xử lý xong")
+    dub_job.delay(
+        job.id, body.target_language, body.voice, body.keep_original_audio, body.custom_voice_id
+    )
+    return {"queued": True}
+
+
+@router.get("/{job_id}/original")
+def download_original(job_id: str) -> FileResponse:
+    job = _get_job(job_id)
+    input_path = Path(job.input_path)
+    if not input_path.exists():
+        raise HTTPException(status_code=404, detail="Không tìm thấy file gốc")
+    media_type = "video/mp4" if input_path.suffix.lower() in (".mp4", ".mkv", ".mov") else None
+    return FileResponse(input_path, media_type=media_type, filename=input_path.name)
+
+
+def _group_output_files(job: Job) -> JobFilesOut:
+    output_dir = Path(job.output_dir)
+    stem = Path(job.input_path).stem
+    if not output_dir.exists():
+        return JobFilesOut(videos=[], subtitles=[])
+    files = [
+        f
+        for f in sorted(output_dir.glob("*.*"))
+        if f.is_file() and not f.name.endswith(_INTERNAL_SUFFIXES)
+    ]
+
+    videos = []
+    subtitle_files = []
+    for f in files:
+        if ".dubbed." in f.name and f.suffix.lower() in _VIDEO_SUFFIXES:
+            lang = f.name.removeprefix(f"{stem}.").split(".")[0]
+            videos.append(VideoOut(name=f.name, language=lang, size_bytes=f.stat().st_size))
+        else:
+            subtitle_files.append(f)
+
+    groups: dict[str, list[Path]] = {}
+    for f in subtitle_files:
+        rest = f.name.removeprefix(f"{stem}.")
+        lang = rest.split(".")[0] if "." in rest else "goc"
+        groups.setdefault(lang, []).append(f)
+
+    subtitles = []
+    for lang, group in groups.items():
+        label = "Phụ đề gốc" if lang == "goc" else f"Phụ đề đã dịch ({lang})"
+        txt = next((f for f in group if f.suffix == ".txt"), None)
+        subtitles.append(
+            SubtitleGroupOut(
+                language=lang,
+                label=label,
+                files=[
+                    FileOut(
+                        name=f.name,
+                        format=f.suffix.removeprefix(".").upper(),
+                        size_bytes=f.stat().st_size,
+                    )
+                    for f in sorted(group, key=lambda x: x.suffix)
+                ],
+                preview_text=txt.read_text(encoding="utf-8") if txt else None,
+            )
+        )
+    return JobFilesOut(videos=videos, subtitles=subtitles)
+
+
+@router.get("/{job_id}/files", response_model=JobFilesOut)
+def list_files(job_id: str) -> JobFilesOut:
+    return _group_output_files(_get_job(job_id))
+
+
+@router.get("/{job_id}/files/{name}")
+def download_file(job_id: str, name: str) -> FileResponse:
+    job = _get_job(job_id)
+    output_dir = Path(job.output_dir)
+    # Chong path traversal: chi chap nhan ten file nam TRUC TIEP trong
+    # output_dir (so khop voi danh sach that, khong ghep duong dan tu input).
+    target = next((f for f in output_dir.glob("*.*") if f.name == name and f.is_file()), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy file")
+    media_type = "video/mp4" if target.suffix in (".mp4", ".mkv") else None
+    return FileResponse(target, media_type=media_type, filename=target.name)
+
+
+@router.post("/{job_id}/subtitles/preview-tts")
+def preview_subtitle_tts(
+    job_id: str,
+    text: str = Form(...),
+    language: str = Form("vi"),
+    voice: str | None = Form(None),
+):
+    from fastapi import Response
+
+    from pipeline.infrastructure.edge_tts import synthesize_sample
+
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Văn bản preview không được để trống")
+
+    audio_bytes = synthesize_sample(
+        language=language,
+        voice=voice or "vi-VN-HoaiMyNeural",
+    )
+    return Response(content=audio_bytes, media_type="audio/mp3")
+
+
+@router.get("/{job_id}/events")
+async def job_events_sse(job_id: str):
+    import asyncio
+
+    import redis.asyncio as aioredis
+    from sse_starlette.sse import EventSourceResponse
+
+    async def event_generator():
+        cfg = AppConfig.from_env()
+        r = aioredis.from_url(cfg.redis_url)
+        pubsub = r.pubsub()
+        await pubsub.subscribe(f"job:{job_id}")
+        try:
+            while True:
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message and message.get("type") == "message":
+                    yield {"data": message["data"].decode("utf-8")}
+                await asyncio.sleep(0.5)
+        finally:
+            await pubsub.unsubscribe(f"job:{job_id}")
+            await r.aclose()
+
+    return EventSourceResponse(event_generator())

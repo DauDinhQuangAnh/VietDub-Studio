@@ -15,7 +15,7 @@ dung xac nhan khong can thanh toan/da nguoi dung nua. Da xoa hoan toan Auth
 
 ## Quyet dinh kien truc quan trong (chot ngay 2026-07-01)
 
-- Frontend/backend UI dung **Streamlit xuyen suot** (khong dung Next.js).
+- Frontend/api UI dung **Streamlit xuyen suot** (khong dung Next.js).
   Streamlit goi truc tiep ham Python, khong qua REST API/FastAPI.
 - Celery + Redis + Postgres van giu de serialize job GPU nang va luu trang thai
   job (khong phai lam REST API).

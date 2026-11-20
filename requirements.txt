@@ -16,9 +16,9 @@ deepfilternet>=0.5.6
 python-dotenv>=1.0.1
 huggingface_hub>=0.23.0
 
-# Job queue + DB (backend/ FastAPI enqueue task, Celery worker xu ly).
-# Alembic quan ly thay doi schema (migrations/ + alembic.ini) - create_all
-# chi tao bang moi, khong ALTER bang co san (xem backend/main.py).
+# Job queue + DB (api/ FastAPI enqueue task, Celery worker xu ly).
+# Alembic quan ly thay doi schema (database_migrations/ + alembic.ini) - create_all
+# chi tao bang moi, khong ALTER bang co san (xem api/main.py).
 sqlalchemy>=2.0.30
 alembic>=1.13.0
 psycopg2-binary>=2.9.9
@@ -26,24 +26,24 @@ celery>=5.4.0
 redis>=5.0.4
 
 # Phase 5 - Dich da ngon ngu (NLLB-200 qua transformers - xem canh bao rui ro
-# trong subtitle_pipeline/infrastructure/translator_nllb.py)
+# trong pipeline/infrastructure/translator_nllb.py)
 transformers>=4.40.0
 sentencepiece>=0.2.0
 
 # Phase 5b - Long tieng (edge-tts - giong Neural TTS mien phi cua Microsoft,
 # xem canh bao rui ro (can internet) trong
-# subtitle_pipeline/infrastructure/tts_edge.py)
+# pipeline/infrastructure/tts_edge.py)
 soundfile>=0.12.1
 edge-tts>=6.1.9
 
 # Phase 5c - Clone giong long tieng (VieNeu-TTS, xem canh bao/spike da chay
-# that trong subtitle_pipeline/infrastructure/tts_vieneu.py). Keo theo
+# that trong pipeline/infrastructure/tts_vieneu.py). Keo theo
 # gradio+pandas (demo UI cua chinh package vieneu, du an nay KHONG dung -
 # chi import class TTS, khong dung gradio) - chap nhan duoc de doi lay
 # adapter don gian, khong tu viet lai wrapper HuggingFace.
 vieneu>=3.2.3
 
-# Backend FastAPI cho UI React (backend/ + frontend/, quyet dinh 2026-07-03
+# Backend FastAPI cho UI React (api/ + web/, quyet dinh 2026-07-03
 # chuyen khoi Streamlit - xem HANDOFF.md)
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
@@ -53,6 +53,6 @@ yt-dlp>=2025.1.26
 
 # Tu dong lay cookie tuoi cho YouTube bang trinh duyet an (thay the viec tu
 # export cookie qua extension) - xem
-# subtitle_pipeline/infrastructure/cookie_refresh.py. Sau khi cai can chay
+# pipeline/infrastructure/cookie_refresh.py. Sau khi cai can chay
 # THEM 1 lan: `python -m playwright install chromium`.
 playwright>=1.47.0
