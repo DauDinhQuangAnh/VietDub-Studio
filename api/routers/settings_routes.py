@@ -36,8 +36,8 @@ async def refresh_cookies_endpoint() -> dict:
         raise HTTPException(
             status_code=502,
             detail=(
-                f"Khong lam moi duoc cookie: {exc}. Neu chua tung chay setup, "
-                "hay chay tren may chu (khong qua API): "
+                f"Không làm mới được cookie: {exc}. Nếu chưa khởi tạo đăng nhập, "
+                "hãy chạy lệnh sau trên máy tính (không chạy qua giao diện): "
                 "python -m pipeline.infrastructure.browser_cookie_manager --setup"
             ),
         ) from exc

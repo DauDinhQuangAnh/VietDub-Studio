@@ -53,7 +53,7 @@ def _encode_multipart_formdata(
 def _compress_audio_if_needed(audio_path: Path) -> tuple[Path, bool]:
     """Khái quát nén audio WAV sang MP3 nhẹ (16kHz mono 48k) nếu dung lượng > 20MB.
 
-    Trả vềE(path_file_can_dung, is_temp).
+    Tra ve (duong_dan_tap_tin, la_tap_tin_tam).
     """
     if (
         audio_path.stat().st_size <= MAX_GROQ_FILE_SIZE_BYTES

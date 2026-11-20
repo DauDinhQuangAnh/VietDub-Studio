@@ -102,9 +102,9 @@ def create_download_job(
     confirmed download, that would leak a new unclosed pool per job.
     """
     if quality not in DOWNLOAD_QUALITIES:
-        raise JobCreationError("Chat luong tai video khong hop le")
+        raise JobCreationError("Chất lượng tải video không hợp lệ.")
     if not url.strip():
-        raise JobCreationError("Can URL video")
+        raise JobCreationError("Cần đường dẫn video.")
 
     job_id = str(uuid.uuid4())
     job_dir = AppConfig.from_env().storage_dir / job_id

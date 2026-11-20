@@ -45,19 +45,19 @@ def verify_file_share_token(token: str, *, job_id: str, filename: str) -> dict[s
     try:
         body, signature = token.split(".", 1)
     except ValueError as exc:
-        raise ShareLinkError("Token tai file khong hop le") from exc
+        raise ShareLinkError("Mã tải tệp không hợp lệ") from exc
 
     expected = _sign(body)
     if not hmac.compare_digest(signature, expected):
-        raise ShareLinkError("Token tai file khong hop le")
+        raise ShareLinkError("Mã tải tệp không hợp lệ")
 
     try:
         payload = json.loads(_b64_decode(body).decode("utf-8"))
     except (ValueError, json.JSONDecodeError) as exc:
-        raise ShareLinkError("Token tai file khong hop le") from exc
+        raise ShareLinkError("Mã tải tệp không hợp lệ") from exc
 
     if payload.get("job_id") != job_id or payload.get("filename") != filename:
-        raise ShareLinkError("Token tai file khong khop")
+        raise ShareLinkError("Mã tải tệp không khớp")
     if int(payload.get("exp", 0)) < int(time.time()):
-        raise ShareLinkError("Token tai file da het han")
+        raise ShareLinkError("Mã tải tệp đã hết hạn")
     return payload

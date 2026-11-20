@@ -33,7 +33,7 @@ export default function Voices() {
 
   const uploadVoice = useMutation({
     mutationFn: async () => {
-      if (!recordedBlob) throw new Error("Chưa có bản ghi âm/file nào.");
+      if (!recordedBlob) throw new Error("Chưa có bản ghi âm hoặc tệp âm thanh.");
       if (!voiceName.trim()) throw new Error("Hãy đặt tên cho giọng.");
       const form = new FormData();
       form.append("name", voiceName.trim());
@@ -81,7 +81,9 @@ export default function Voices() {
         setRecordedSeconds((Date.now() - startedAt) / 1000);
       }, 200);
     } catch {
-      setErrorMessage("Không truy cập được micro. Hãy cấp quyền cho trình duyệt, hoặc dùng nút tải file bên dưới.");
+      setErrorMessage(
+        "Không truy cập được micro. Hãy cấp quyền cho trình duyệt hoặc tải tệp âm thanh lên."
+      );
     }
   }
 
@@ -107,14 +109,13 @@ export default function Voices() {
       <main className="mx-auto max-w-3xl px-4 py-8">
         <h1 className="mb-1 text-2xl font-bold">Giọng của tôi</h1>
         <p className="mb-6 text-sm text-ink-soft">
-          Đọc một đoạn văn mẫu (hoặc tải lên 1 file ghi âm sẵn) để tạo giọng riêng - dùng để lồng
-          tiếng thay cho các giọng có sẵn. Cần tối thiểu vài giây âm thanh rõ ràng, ít tiếng ồn;
-          đọc khoảng 20-30 giây thường cho kết quả tốt hơn.
+          Đọc đoạn văn mẫu (hoặc tải lên tệp ghi âm) để tạo bản sao giọng nói dùng khi lồng tiếng.
+          Bản ghi cần rõ ràng, ít tiếng ồn; đọc khoảng 20–30 giây thường cho kết quả tốt hơn.
         </p>
 
         <div className="card mb-6 space-y-4">
           <div>
-            <p className="label">Đoạn văn mẫu (đọc to, rõ, tốc độ bình thường)</p>
+            <p className="label">Đoạn văn mẫu (đọc rõ ràng, tốc độ bình thường)</p>
             <p className="rounded-lg bg-cream px-4 py-3 text-sm leading-relaxed text-ink">
               {SAMPLE_SCRIPT}
             </p>
@@ -123,16 +124,20 @@ export default function Voices() {
           <div className="flex flex-wrap items-center gap-3">
             {!recording ? (
               <button type="button" className="btn-primary" onClick={startRecording}>
-                🎙️ Bắt đầu ghi âm
+                🎙️ Bắt đầu thu âm
               </button>
             ) : (
-              <button type="button" className="btn-primary bg-red-600 hover:bg-red-700" onClick={stopRecording}>
-                ⏹ Dừng ({recordedSeconds.toFixed(0)}s)
+              <button
+                type="button"
+                className="btn-primary bg-red-600 hover:bg-red-700"
+                onClick={stopRecording}
+              >
+                ⏹ Dừng thu âm ({recordedSeconds.toFixed(0)} giây)
               </button>
             )}
             <span className="text-sm text-ink-soft">hoặc</span>
             <label className="btn-ghost cursor-pointer">
-              Tải file âm thanh lên
+              Tải tệp âm thanh lên
               <input type="file" accept="audio/*" className="hidden" onChange={onFileSelected} />
             </label>
           </div>
@@ -142,15 +147,15 @@ export default function Voices() {
               <audio controls src={recordedUrl} className="w-full" />
               {recordedSeconds > 0 && recordedSeconds < MIN_SECONDS && (
                 <p className="text-sm text-amber-700">
-                  Đoạn ghi hơi ngắn ({recordedSeconds.toFixed(0)}s) - nên ghi tối thiểu{" "}
-                  {MIN_SECONDS}s để nhân bản giọng chính xác hơn.
+                  Bản ghi hơi ngắn ({recordedSeconds.toFixed(0)} giây). Nên thu âm tối thiểu{" "}
+                  {MIN_SECONDS} giây để tạo bản sao giọng chính xác hơn.
                 </p>
               )}
               <div className="flex flex-wrap items-center gap-3">
                 <input
                   type="text"
                   className="input max-w-xs"
-                  placeholder="Đặt tên cho giọng (vd. Giọng của tôi)"
+                  placeholder="Đặt tên cho giọng (ví dụ: Giọng của tôi)"
                   value={voiceName}
                   onChange={(e) => setVoiceName(e.target.value)}
                 />
@@ -169,14 +174,14 @@ export default function Voices() {
           {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
         </div>
 
-        <h2 className="mb-3 text-lg font-semibold">Danh sách giọng đã clone</h2>
+        <h2 className="mb-3 text-lg font-semibold">Danh sách giọng đã tạo</h2>
         {isLoading && (
           <div className="flex items-center gap-2 text-ink-soft">
             <Spinner /> Đang tải...
           </div>
         )}
         {voices && voices.length === 0 && (
-          <p className="text-sm text-ink-soft">Chưa có giọng nào - tạo giọng đầu tiên ềEtrên.</p>
+          <p className="text-sm text-ink-soft">Chưa có giọng nào. Hãy tạo giọng đầu tiên ở trên.</p>
         )}
         <div className="space-y-2">
           {voices?.map((v) => (

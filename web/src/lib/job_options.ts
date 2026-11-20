@@ -76,10 +76,10 @@ export const STATUS_LABELS: Record<string, string> = {
 export const PIPELINE_STEPS = [
   { key: "starting", label: "Khởi động" },
   { key: "download", label: "Tải video" },
-  { key: "extract_audio", label: "Tách audio" },
+  { key: "extract_audio", label: "Tách âm thanh" },
   { key: "denoise", label: "Khử ồn" },
   { key: "transcribe", label: "Nhận diện lời nói" },
-  { key: "align", label: "Căn timing" },
+  { key: "align", label: "Căn thời gian" },
   { key: "diarize", label: "Tách người nói" },
   { key: "merge", label: "Ghép kết quả" },
   { key: "translate", label: "Dịch" },
@@ -90,23 +90,23 @@ export const PIPELINE_STEPS = [
 export const TOTAL_STAGES = PIPELINE_STEPS.length;
 
 export const STT_MODEL_CHOICES: { label: string; value: string }[] = [
-  { label: "Large v3 Turbo (Khuyên dùng - Nhanh & Nhẹ ~3.5GB VRAM)", value: "large-v3-turbo" },
-  { label: "Medium (Cân bằng ~1.5GB VRAM)", value: "medium" },
-  { label: "Large v3 (Chính xác cao nhất ~10GB VRAM)", value: "large-v3" },
-  { label: "Small (Nhanh cho máy yếu ~1GB VRAM)", value: "small" },
+  { label: "Large v3 Turbo (khuyên dùng, nhanh và nhẹ ~3,5 GB bộ nhớ GPU)", value: "large-v3-turbo" },
+  { label: "Medium (cân bằng ~1,5 GB bộ nhớ GPU)", value: "medium" },
+  { label: "Large v3 (độ chính xác cao nhất ~10 GB bộ nhớ GPU)", value: "large-v3" },
+  { label: "Small (nhanh trên máy cấu hình thấp ~1 GB bộ nhớ GPU)", value: "small" },
 ];
 
 export const PRONUNCIATION_DOMAIN_CHOICES: { id: string; label: string; icon: string; category: string }[] = [
-  { id: "it", label: "CNTT / Lập trình / AI", icon: "💻", category: "Công nghệ & Khoa học" },
+  { id: "it", label: "Công nghệ thông tin / Lập trình / AI", icon: "💻", category: "Công nghệ & Khoa học" },
   { id: "hardware", label: "Công nghệ / Phần cứng / Ô tô", icon: "🚗", category: "Công nghệ & Khoa học" },
   { id: "medical", label: "Y tế / Dược / Sức khỏe", icon: "🩺", category: "Công nghệ & Khoa học" },
-  { id: "finance", label: "Tài chính / Ngân hàng / Crypto", icon: "📈", category: "Kinh doanh & Đời sống" },
-  { id: "marketing", label: "Marketing / E-Commerce", icon: "🛍️", category: "Kinh doanh & Đời sống" },
+  { id: "finance", label: "Tài chính / Ngân hàng / Tiền mã hóa", icon: "📈", category: "Kinh doanh & Đời sống" },
+  { id: "marketing", label: "Tiếp thị / Thương mại điện tử", icon: "🛍️", category: "Kinh doanh & Đời sống" },
   { id: "realestate", label: "Bất động sản / Kiến trúc", icon: "🏢", category: "Kinh doanh & Đời sống" },
   { id: "education", label: "Giáo dục / Học thuật / Du học", icon: "🎓", category: "Kinh doanh & Đời sống" },
-  { id: "gaming", label: "Gaming / Esports / Streamer", icon: "🎮", category: "Giải trí & Thể thao" },
-  { id: "sports", label: "Thể thao / Fitness / Gym", icon: "⚽", category: "Giải trí & Thể thao" },
-  { id: "cinema", label: "Điện ảnh / Phim ảnh / Music", icon: "🎬", category: "Giải trí & Thể thao" },
-  { id: "fashion", label: "Thời trang / Làm đẹp / Skincare", icon: "💄", category: "Văn hóa & Đời sống" },
+  { id: "gaming", label: "Trò chơi / Thể thao điện tử / Nhà sáng tạo nội dung", icon: "🎮", category: "Giải trí & Thể thao" },
+  { id: "sports", label: "Thể thao / Thể hình", icon: "⚽", category: "Giải trí & Thể thao" },
+  { id: "cinema", label: "Điện ảnh / Phim ảnh / Âm nhạc", icon: "🎬", category: "Giải trí & Thể thao" },
+  { id: "fashion", label: "Thời trang / Làm đẹp / Chăm sóc da", icon: "💄", category: "Văn hóa & Đời sống" },
   { id: "culinary", label: "Ẩm thực / Nấu ăn / Nhà hàng", icon: "☕", category: "Văn hóa & Đời sống" },
 ];

@@ -37,7 +37,7 @@ def _patch_speechbrain_lazy_import_for_windows() -> None:
 class PyannoteDiarizer:
     def __init__(self, hf_token: str | None, device: str):
         if not hf_token:
-            raise ValueError("HF_TOKEN is required for pyannote diarization")
+            raise ValueError("Cần cấu hình HF_TOKEN để nhận diện người nói bằng pyannote.")
         self._hf_token = hf_token
         self._device = device
         self._pipeline = None

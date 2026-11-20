@@ -57,7 +57,7 @@ QUALITY_FALLBACKS = {
 }
 
 QUALITY_LABELS = {
-    "best": "Tot nhat",
+    "best": "Tốt nhất",
     "1080p": "1080p",
     "720p": "720p",
     "480p": "480p",
@@ -106,7 +106,7 @@ def normalize_video_url(url: str) -> str:
 def check_ffmpeg() -> str | None:
     missing = [name for name in ("ffmpeg", "ffprobe") if not shutil.which(name)]
     if missing:
-        return "FFmpeg/FFprobe chua co trong PATH, khong the ghep stream video tai ve."
+        return "Thiếu FFmpeg/FFprobe nên không thể ghép các luồng video đã tải."
     return None
 
 
@@ -157,9 +157,9 @@ def friendly_yt_dlp_error(message: str) -> str:
     if _is_youtube_cookie_error(message):
         return (
             "Nền tảng (YouTube/TikTok/Bilibili) yêu cầu xác thực bot nên chưa đọc được video. "
-            "HềEthống đã thử tự làm mới cookie nhưng chưa thành công. Vào Admin bấm "
-            '"Làm mới cookie", hoặc admin cần chạy setup đăng nhập 1 lần '
-            "theo hướng dẫn trong .env.example."
+            "Hệ thống chưa thể tự làm mới cookie. Hãy mở mục Cài đặt và chọn "
+            '"Làm mới cookie", hoặc chạy lệnh khởi tạo đăng nhập theo hướng dẫn '
+            "trong tệp .env.example."
         )
     if "tiktok" in lower and ("login" in lower or "verify" in lower or "captcha" in lower):
         return "TikTok yêu cầu đăng nhập/xác minh captcha. Hãy cập nhật cookie trong trang Admin."
@@ -168,9 +168,9 @@ def friendly_yt_dlp_error(message: str) -> str:
             "Bilibili yêu cầu xác thực tài khoản. Hãy cập nhật cookie Bilibili trong trang Admin."
         )
     if "unsupported url" in lower:
-        return "Link này chưa được yt-dlp hềEtrợ."
+        return "Đường dẫn này chưa được yt-dlp hỗ trợ."
     if "private" in lower:
-        return "Video đang private hoặc không thềEtruy cập công khai."
+        return "Video đang ở chế độ riêng tư hoặc không thể truy cập công khai."
     if "http error 403" in lower or "forbidden" in lower:
         return "Nguồn video từ chối stream này. Hãy thử lại hoặc chọn 720p/480p."
     if any(
@@ -183,7 +183,7 @@ def friendly_yt_dlp_error(message: str) -> str:
             "updating yt-dlp",
         )
     ):
-        return "yt-dlp không đọc được video này; có thềEcần cập nhật yt-dlp."
+        return "yt-dlp không đọc được video này; có thể cần cập nhật yt-dlp."
     return message
 
 
@@ -210,7 +210,7 @@ def analyze_video(url: str) -> VideoMetadata:
             raise RuntimeError(friendly_yt_dlp_error(str(exc))) from exc
 
     if info is None:
-        raise RuntimeError("Khong doc duoc metadata video.")
+        raise RuntimeError("Không đọc được thông tin video.")
 
     formats = info.get("formats") or []
     heights = {
@@ -245,7 +245,7 @@ def download_video(url: str, quality: str, output_path: Path) -> Path:
     if ffmpeg_error:
         raise RuntimeError(ffmpeg_error)
     if quality not in QUALITY_FORMATS:
-        raise RuntimeError("Chat luong tai ve khong hop le.")
+        raise RuntimeError("Chất lượng tải xuống không hợp lệ.")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     temp_template = str(output_path.parent / "_download_%(id)s.%(ext)s")
@@ -276,7 +276,7 @@ def download_video(url: str, quality: str, output_path: Path) -> Path:
                 ydl.download([normalize_video_url(url)])
             completed = _find_completed_file(output_path.parent)
             if completed is None:
-                raise RuntimeError("Da tai xong nhung khong tim thay file video.")
+                raise RuntimeError("Đã tải xong nhưng không tìm thấy tệp video.")
             if output_path.exists():
                 output_path.unlink()
             return completed.rename(output_path)
@@ -298,7 +298,7 @@ def download_video(url: str, quality: str, output_path: Path) -> Path:
                 raise RuntimeError(friendly_yt_dlp_error("; ".join(errors))) from exc
             index += 1
 
-    raise RuntimeError("Khong tai duoc video.")
+    raise RuntimeError("Không tải được video.")
 
 
 def _find_completed_file(download_dir: Path) -> Path | None:

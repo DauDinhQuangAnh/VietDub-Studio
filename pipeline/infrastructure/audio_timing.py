@@ -31,7 +31,7 @@ def _clamp_atempo_factors(factor: float) -> list[float]:
     (xem tests/test_audio_timing.py).
     """
     if factor <= 0:
-        raise ValueError("factor phai > 0")
+        raise ValueError("Hệ số phải lớn hơn 0.")
     factors: list[float] = []
     remaining = factor
     while remaining > 2.0:
@@ -46,7 +46,7 @@ def _clamp_atempo_factors(factor: float) -> list[float]:
 
 def time_stretch_to_duration(input_path: Path, output_path: Path, target_duration: float) -> None:
     if target_duration <= 0:
-        raise ValueError("target_duration phai > 0")
+        raise ValueError("Thời lượng mục tiêu phải lớn hơn 0.")
     current_duration = probe_duration_seconds(input_path)
     factor = current_duration / target_duration
     atempo_chain = ",".join(f"atempo={f:.6f}" for f in _clamp_atempo_factors(factor))

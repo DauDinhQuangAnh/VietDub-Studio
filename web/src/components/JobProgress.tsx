@@ -62,8 +62,8 @@ export default function StageProgress({
     status === "queued" ? "Đang chờ xử lý" : status === "running" ? "Đang xử lý" : STATUS_LABELS[status];
   const detail =
     status === "queued"
-      ? "Job đã vào hàng đợi. Worker sẽ tự động nhận khi đến lượt."
-        : "Pipeline đang chạy. Trang này tự cập nhật khi có tiến độ mới.";
+      ? "Tác vụ đã vào hàng đợi và sẽ tự động bắt đầu khi đến lượt."
+      : "Đang xử lý. Trang sẽ tự cập nhật khi có tiến độ mới.";
 
   return (
     <section className="mb-6 overflow-hidden rounded-xl border border-line bg-white shadow-sm">

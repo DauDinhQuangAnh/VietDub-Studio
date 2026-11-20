@@ -43,8 +43,11 @@ def _resolve_broker_url() -> tuple[str, str]:
 
 
 broker_url, result_backend = _resolve_broker_url()
-celery_app = Celery("subtitle_studio", broker=broker_url, backend=result_backend)
+celery_app = Celery(
+    "subtitle_studio",
+    broker=broker_url,
+    backend=result_backend,
+    include=["worker.jobs.job_tasks"],
+)
 celery_app.conf.worker_concurrency = 1
 celery_app.conf.task_track_started = True
-
-celery_app.autodiscover_tasks(["worker.jobs"])

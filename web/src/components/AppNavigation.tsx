@@ -28,16 +28,16 @@ export default function AppNavigation() {
         </div>
         <nav className="flex items-center gap-2 sm:gap-3">
           <Link to="/" className="btn-ghost text-sm font-medium">
-            Studio
+            Bảng điều khiển
           </Link>
           <Link to="/downloader" className="btn-ghost text-sm font-medium">
-            📥 Tải Video
+            📥 Tải video
           </Link>
           <Link to="/voices" className="btn-ghost text-sm font-medium">
-            Giọng của tôi
+            Thư viện giọng nói
           </Link>
           <Link to="/admin" className="btn-ghost text-sm font-medium">
-            Quản trị & Cookies
+            Cài đặt
           </Link>
           <Link to="/studio/new" className="btn-primary text-sm">
             + Tạo video mới

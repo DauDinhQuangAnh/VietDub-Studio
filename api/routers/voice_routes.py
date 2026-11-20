@@ -31,7 +31,7 @@ def _voices_dir() -> Path:
 def get_voice(voice_id: str):
     voice = custom_voice_repo().get(voice_id)
     if voice is None:
-        raise HTTPException(status_code=404, detail="Không tìm thấy giọng đã clone")
+        raise HTTPException(status_code=404, detail="Không tìm thấy giọng đã tạo.")
     return voice
 
 
@@ -41,10 +41,10 @@ def create_voice(
     file: UploadFile = File(...),
 ) -> CustomVoiceOut:
     if not name.strip():
-        raise HTTPException(status_code=400, detail="Cần đặt tên cho giọng")
+        raise HTTPException(status_code=400, detail="Vui lòng đặt tên cho giọng.")
     data = file.file.read()
     if len(data) > MAX_FILE_SIZE_MB * 1024 * 1024:
-        raise HTTPException(status_code=400, detail=f"File quá {MAX_FILE_SIZE_MB}MB")
+        raise HTTPException(status_code=400, detail=f"Tệp vượt quá giới hạn {MAX_FILE_SIZE_MB} MB.")
 
     voice_id = str(uuid.uuid4())
     voice_dir = _voices_dir()
@@ -63,7 +63,8 @@ def create_voice(
         )
     except subprocess.CalledProcessError as exc:
         raise HTTPException(
-            status_code=400, detail=f"Không đọc được file âm thanh: {exc.stderr}"
+            status_code=400,
+            detail=f"Không xử lý được tệp âm thanh. Chi tiết kỹ thuật: {exc.stderr}",
         ) from exc
     finally:
         raw_path.unlink(missing_ok=True)
@@ -74,7 +75,7 @@ def create_voice(
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Đoạn ghi quá ngắn ({duration:.1f} giây) - cần đọc tối thiểu "
+                f"Bản ghi quá ngắn ({duration:.1f} giây). Cần thu âm tối thiểu "
                 f"{MIN_REFERENCE_SECONDS:.0f} giây."
             ),
         )

@@ -151,7 +151,7 @@ def _parse_batch_response(raw: str, expected_count: int) -> list[str]:
     parsed = json.loads(raw)
     if not isinstance(parsed, list) or len(parsed) != expected_count:
         raise ValueError(
-            f"Gemini trả vềE{len(parsed) if isinstance(parsed, list) else 'không phải mảng'} "
+            f"Gemini trả về {len(parsed) if isinstance(parsed, list) else 'không phải mảng'} "
             f"phần tử, cần đúng {expected_count}"
         )
     return [str(item) for item in parsed]

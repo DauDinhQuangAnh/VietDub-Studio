@@ -22,9 +22,9 @@ export default function ExecutionEngineToggle({
               ? "bg-primary text-white shadow-sm"
               : "text-ink-soft hover:text-ink hover:bg-cream"
           }`}
-          title="Miễn phí 100%, 0% GPU VRAM, Tốc độ cực nhanh qua Groq & Gemini APIs"
+          title="Cần Internet; dùng Groq và Gemini, không sử dụng GPU trên máy này"
         >
-          <span>⚡</span> Cloud API Free
+          <span>⚡</span> Dịch vụ đám mây
         </button>
         <button
           type="button"
@@ -34,9 +34,9 @@ export default function ExecutionEngineToggle({
               ? "bg-primary text-white shadow-sm"
               : "text-ink-soft hover:text-ink hover:bg-cream"
           }`}
-          title="Chạy phần cứng GPU local/máy chủ riêng"
+          title="Xử lý bằng phần cứng trên máy tính của bạn"
         >
-          <span>🖥️</span> GPU Máy chủ
+          <span>🖥️</span> GPU trên máy
         </button>
       </div>
     );
@@ -47,7 +47,7 @@ export default function ExecutionEngineToggle({
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h3 className="text-base font-bold text-ink flex items-center gap-2">
-            <span>⚙️</span> Chế độ Vận hành Engine AI
+            <span>⚙️</span> Chế độ xử lý AI
           </h3>
           <p className="text-xs text-ink-soft mt-0.5">
             Lựa chọn hạ tầng xử lý AI cho tiến trình dịch và lồng tiếng của bạn
@@ -60,7 +60,7 @@ export default function ExecutionEngineToggle({
               : "bg-indigo-100 text-indigo-800 border border-indigo-300"
           }`}
         >
-          {mode === "CLOUD_FREE_API" ? "⚡ Cloud API Free Active" : "🖥️ GPU Local Active"}
+          {mode === "CLOUD_FREE_API" ? "⚡ Đang dùng dịch vụ đám mây" : "🖥️ Đang dùng GPU trên máy"}
         </span>
       </div>
 
@@ -80,9 +80,9 @@ export default function ExecutionEngineToggle({
                 ⚡
               </span>
               <div>
-                <h4 className="font-bold text-sm text-ink">Cloud API Miễn phí</h4>
+                <h4 className="font-bold text-sm text-ink">Dịch vụ đám mây</h4>
                 <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                  Khuyên dùng cho CPU / VM Free
+                  Cần Internet · có hạn mức miễn phí
                 </span>
               </div>
             </div>
@@ -96,16 +96,16 @@ export default function ExecutionEngineToggle({
           </div>
           <ul className="mt-3 text-xs text-ink-soft space-y-1.5">
             <li className="flex items-center gap-1.5">
-              <span className="text-emerald-500 font-bold">✓</span> Miễn phí 100%, 0% GPU VRAM tiêu tốn
+              <span className="text-emerald-500 font-bold">✓</span> Không sử dụng GPU trên máy này
             </li>
             <li className="flex items-center gap-1.5">
-              <span className="text-emerald-500 font-bold">✓</span> Groq API (Whisper v3 siêu tốc 200 từ/s)
+              <span className="text-emerald-500 font-bold">✓</span> Groq (nhận dạng lời nói Whisper v3)
             </li>
             <li className="flex items-center gap-1.5">
-              <span className="text-emerald-500 font-bold">✓</span> Gemini LLM (Dịch ngữ cảnh chuẩn xác)
+              <span className="text-emerald-500 font-bold">✓</span> Gemini (dịch theo ngữ cảnh)
             </li>
             <li className="flex items-center gap-1.5">
-              <span className="text-emerald-500 font-bold">✓</span> Edge-TTS (Giọng đọc Neural tự nhiên)
+              <span className="text-emerald-500 font-bold">✓</span> Edge-TTS (giọng đọc AI tự nhiên)
             </li>
           </ul>
         </div>
@@ -125,9 +125,9 @@ export default function ExecutionEngineToggle({
                 🖥️
               </span>
               <div>
-                <h4 className="font-bold text-sm text-ink">GPU Máy chủ Local</h4>
+                <h4 className="font-bold text-sm text-ink">GPU trên máy tính</h4>
                 <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                  Cần GPU NVIDIA (6GB+ VRAM)
+                  Cần GPU NVIDIA (từ 6 GB bộ nhớ)
                 </span>
               </div>
             </div>
@@ -141,16 +141,16 @@ export default function ExecutionEngineToggle({
           </div>
           <ul className="mt-3 text-xs text-ink-soft space-y-1.5">
             <li className="flex items-center gap-1.5">
-              <span className="text-indigo-500 font-bold">✓</span> Bảo mật 100% nội bộ không qua API ngoài
+              <span className="text-indigo-500 font-bold">✓</span> Xử lý trên máy, không gửi dữ liệu qua dịch vụ ngoài
             </li>
             <li className="flex items-center gap-1.5">
-              <span className="text-indigo-500 font-bold">✓</span> Faster-Whisper + Pyannote Diarization
+              <span className="text-indigo-500 font-bold">✓</span> Faster-Whisper + Pyannote (nhận diện người nói)
             </li>
             <li className="flex items-center gap-1.5">
-              <span className="text-indigo-500 font-bold">✓</span> DeepFilterNet khử ồn nhiễu âm thanh
+              <span className="text-indigo-500 font-bold">✓</span> DeepFilterNet (lọc tạp âm)
             </li>
             <li className="flex items-center gap-1.5">
-              <span className="text-indigo-500 font-bold">✓</span> VieNeu-TTS Voice Cloning cá nhân
+              <span className="text-indigo-500 font-bold">✓</span> VieNeu-TTS (nhân bản giọng nói)
             </li>
           </ul>
         </div>

@@ -50,7 +50,7 @@ def _write_job_config(job_dir: Path, options: dict) -> None:
 def _get_job(job_id: str) -> Job:
     job = job_repo().get(job_id)
     if job is None:
-        raise HTTPException(status_code=404, detail="Không tìm thấy job")
+        raise HTTPException(status_code=404, detail="Không tìm thấy tác vụ.")
     return job
 
 
@@ -64,10 +64,14 @@ def _create_job_from_options(options: dict, upload: UploadFile | None = None) ->
     if upload is not None and upload.filename:
         extension = upload.filename.rsplit(".", 1)[-1].lower()
         if extension not in ALLOWED_EXTENSIONS:
-            raise HTTPException(status_code=400, detail=f"Định dạng '.{extension}' không hềEtrợ")
+            raise HTTPException(
+                status_code=400, detail=f"Định dạng '.{extension}' không được hỗ trợ."
+            )
         data = upload.file.read()
         if len(data) > MAX_FILE_SIZE_MB * 1024 * 1024:
-            raise HTTPException(status_code=400, detail=f"File quá {MAX_FILE_SIZE_MB}MB")
+            raise HTTPException(
+                status_code=400, detail=f"Tệp vượt quá giới hạn {MAX_FILE_SIZE_MB} MB."
+            )
         filename = sanitize_filename(Path(upload.filename).name)
         input_path = job_dir / filename
         input_path.write_bytes(data)
@@ -88,7 +92,9 @@ def _create_job_from_options(options: dict, upload: UploadFile | None = None) ->
         }
         options["source"] = source
     else:
-        raise HTTPException(status_code=400, detail="Cần file upload hoặc link video")
+        raise HTTPException(
+            status_code=400, detail="Vui lòng tải tệp lên hoặc nhập đường dẫn video."
+        )
 
     _write_job_config(job_dir, options)
     job = job_repo().create(
@@ -129,7 +135,9 @@ def create_job(
     try:
         parsed = json.loads(options)
     except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=400, detail=f"options không phải JSON: {exc}") from exc
+        raise HTTPException(
+            status_code=400, detail=f"Cấu hình không phải JSON hợp lệ: {exc}"
+        ) from exc
     return JobOut.from_job(_create_job_from_options(parsed, file))
 
 
@@ -156,7 +164,10 @@ def rerun_job(job_id: str) -> JobOut:
     job = _get_job(job_id)
     config_path = Path(job.output_dir).parent / "job_config.json"
     if not config_path.exists():
-        raise HTTPException(status_code=400, detail="Job này không có job_config.json để tạo lại")
+        raise HTTPException(
+            status_code=400,
+            detail="Tác vụ này không có tệp job_config.json để chạy lại.",
+        )
     options = json.loads(config_path.read_text(encoding="utf-8"))
 
     new_id = str(uuid.uuid4())
@@ -170,7 +181,7 @@ def rerun_job(job_id: str) -> JobOut:
     else:
         source_file = Path(job.input_path)
         if not source_file.exists():
-            raise HTTPException(status_code=400, detail="File gốc không còn trên đĩa")
+            raise HTTPException(status_code=400, detail="Không tìm thấy tệp nguồn trên máy.")
         filename = source_file.name
         input_path = new_dir / filename
         shutil.copy2(source_file, input_path)
@@ -222,7 +233,7 @@ def update_subtitles(job_id: str, language: str, body: UpdateSubtitlesIn) -> dic
 def translate_job_endpoint(job_id: str, body: TranslateJobIn) -> dict:
     job = _get_job(job_id)
     if job.status != JobStatus.DONE:
-        raise HTTPException(status_code=400, detail="Job chưa xử lý xong")
+        raise HTTPException(status_code=400, detail="Tác vụ chưa xử lý xong.")
     translate_job.delay(job.id, body.target_language)
     return {"queued": True}
 
@@ -231,7 +242,7 @@ def translate_job_endpoint(job_id: str, body: TranslateJobIn) -> dict:
 def dub_job_endpoint(job_id: str, body: DubJobIn) -> dict:
     job = _get_job(job_id)
     if job.status != JobStatus.DONE:
-        raise HTTPException(status_code=400, detail="Job chưa xử lý xong")
+        raise HTTPException(status_code=400, detail="Tác vụ chưa xử lý xong.")
     dub_job.delay(
         job.id, body.target_language, body.voice, body.keep_original_audio, body.custom_voice_id
     )
@@ -243,7 +254,7 @@ def download_original(job_id: str) -> FileResponse:
     job = _get_job(job_id)
     input_path = Path(job.input_path)
     if not input_path.exists():
-        raise HTTPException(status_code=404, detail="Không tìm thấy file gốc")
+        raise HTTPException(status_code=404, detail="Không tìm thấy tệp nguồn.")
     media_type = "video/mp4" if input_path.suffix.lower() in (".mp4", ".mkv", ".mov") else None
     return FileResponse(input_path, media_type=media_type, filename=input_path.name)
 
@@ -309,7 +320,7 @@ def download_file(job_id: str, name: str) -> FileResponse:
     # output_dir (so khop voi danh sach that, khong ghep duong dan tu input).
     target = next((f for f in output_dir.glob("*.*") if f.name == name and f.is_file()), None)
     if target is None:
-        raise HTTPException(status_code=404, detail="Không tìm thấy file")
+        raise HTTPException(status_code=404, detail="Không tìm thấy tệp.")
     media_type = "video/mp4" if target.suffix in (".mp4", ".mkv") else None
     return FileResponse(target, media_type=media_type, filename=target.name)
 
@@ -326,7 +337,7 @@ def preview_subtitle_tts(
     from pipeline.infrastructure.edge_tts import synthesize_sample
 
     if not text.strip():
-        raise HTTPException(status_code=400, detail="Văn bản preview không được để trống")
+        raise HTTPException(status_code=400, detail="Văn bản xem trước không được để trống.")
 
     audio_bytes = synthesize_sample(
         language=language,

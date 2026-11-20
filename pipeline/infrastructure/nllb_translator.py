@@ -60,9 +60,9 @@ class NLLBTranslator:
         model_name: str = "facebook/nllb-200-distilled-600M",
     ):
         if source_language not in NLLB_LANGUAGE_CODES:
-            raise ValueError(f"Ngôn ngữ nguồn chưa hềEtrợ: {source_language}")
+            raise ValueError(f"Ngôn ngữ nguồn chưa được hỗ trợ: {source_language}")
         if target_language not in NLLB_LANGUAGE_CODES:
-            raise ValueError(f"Ngôn ngữ đích chưa hềEtrợ: {target_language}")
+            raise ValueError(f"Ngôn ngữ đích chưa được hỗ trợ: {target_language}")
         self._source_code = NLLB_LANGUAGE_CODES[source_language]
         self._target_code = NLLB_LANGUAGE_CODES[target_language]
         self._device = device

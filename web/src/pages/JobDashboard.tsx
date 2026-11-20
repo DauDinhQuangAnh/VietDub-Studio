@@ -61,7 +61,7 @@ export default function Studio() {
       <NavBar />
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Studio</h1>
+          <h1 className="text-2xl font-bold">Bảng điều khiển</h1>
           <Link to="/studio/new" className="btn-primary">
             + Tạo video mới
           </Link>
@@ -69,7 +69,7 @@ export default function Studio() {
 
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
-            ["Tổng sềEjob", counts.total],
+            ["Tổng số tác vụ", counts.total],
             ["Đang xử lý", counts.active],
             ["Hoàn thành", counts.done],
             ["Thất bại", counts.failed],
@@ -107,9 +107,9 @@ export default function Studio() {
         )}
         {!isLoading && visible.length === 0 && (
           <div className="card py-12 text-center text-ink-soft">
-            Chưa có job nào.{" "}
+            Chưa có tác vụ nào.{" "}
             <Link to="/studio/new" className="font-medium text-primary">
-              Tạo video đầu tiên
+              Tạo tác vụ đầu tiên
             </Link>
           </div>
         )}
@@ -156,13 +156,13 @@ export default function Studio() {
                     {rerunJob.isPending && rerunJob.variables === job.id && (
                       <Spinner className="h-3 w-3" />
                     )}
-                    Tạo lại
+                    Chạy lại
                   </button>
                   <button
                     className="btn-ghost px-3 py-1 text-xs text-red-600 hover:border-red-400"
                     disabled={deleteJob.isPending && deleteJob.variables === job.id}
                     onClick={() => {
-                      if (confirm(`Xóa vĩnh viềE job "${job.filename}"?`))
+                      if (confirm(`Bạn có chắc muốn xóa vĩnh viễn tác vụ "${job.filename}"?`))
                         deleteJob.mutate(job.id);
                     }}
                   >

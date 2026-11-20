@@ -186,12 +186,17 @@ def process_video_job(job_id: str, options: dict | None = None) -> None:
                     job_id,
                     status=JobStatus.RUNNING,
                     stage="translate_dub_skipped",
-                    error_message=f"BềEqua dịch/lồng tiếng: {exc}",
+                    error_message=f"Bước dịch và lồng tiếng chưa hoàn tất: {exc}",
                 )
 
         repo.update_status(job_id, status=JobStatus.DONE, stage="done")
     except Exception as exc:
-        repo.update_status(job_id, status=JobStatus.FAILED, stage=None, error_message=str(exc))
+        repo.update_status(
+            job_id,
+            status=JobStatus.FAILED,
+            stage=None,
+            error_message=f"Tác vụ xử lý thất bại: {exc}",
+        )
         raise
     finally:
         source = options.get("source") or {}

@@ -22,10 +22,11 @@ co the CHUA tuan thu day du (xem HANDOFF.md muc "Van de dang mo").
   ro nghia). Giu 1 doan ngan o dau module khi can, khong them docstring rieng
   cho tung ham don gian, tu no da giai thich duoc qua ten goi.
 - Khong dung emoji trong code/comment/docstring.
-- **Chuoi hien thi cho nguoi dung (UI Streamlit, thong bao loi ghi vao
-  `Job.error_message`, nhan giong doc...) PHAI la tieng Viet CO DAU** (quyet
-  dinh 2026-07-03 theo yeu cau nguoi dung). Comment/docstring/tai lieu noi bo
-  (HANDOFF.md, docs/) van giu khong dau - nguoi dung cuoi khong nhin thay.
+- **Chuoi hien thi cho nguoi dung (UI React, thong bao API, `Job.error_message`,
+  nhan giong doc...) PHAI la tieng Viet CO DAU** (quyet dinh theo yeu cau
+  nguoi dung). Comment/docstring/tai lieu noi bo (HANDOFF.md, docs/) van giu
+  khong dau - nguoi dung cuoi khong nhin thay. Ten thuong hieu, model, dich vu
+  va dinh dang tep duoc giu nguyen khi can nhan dien chinh xac.
 - Naming: `snake_case` cho function/variable, `PascalCase` cho class,
   `UPPER_SNAKE_CASE` cho constant.
 - Package that (co logic ben trong, duoc import boi module khac) phai co

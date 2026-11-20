@@ -10,12 +10,19 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   const res = await fetch(path, { ...init, headers });
   if (!res.ok) {
-    let detail = res.statusText;
+    let detail = `Yêu cầu không thành công (${res.status}).`;
     try {
-      const body = await res.json();
-      detail = body.detail ?? detail;
+      const body: unknown = await res.json();
+      if (
+        typeof body === "object" &&
+        body !== null &&
+        "detail" in body &&
+        typeof body.detail === "string"
+      ) {
+        detail = body.detail;
+      }
     } catch {
-      /* body khong phai JSON */
+      /* Phản hồi không phải JSON. */
     }
     throw new ApiError(res.status, detail);
   }

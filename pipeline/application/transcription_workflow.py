@@ -33,7 +33,7 @@ from pipeline.pipeline_settings import PipelineConfig
 
 class PipelineStageError(RuntimeError):
     def __init__(self, stage: str, cause: Exception):
-        super().__init__(f"Pipeline stage '{stage}' failed: {cause}")
+        super().__init__(f"Bước xử lý '{stage}' không hoàn tất: {cause}")
         self.stage = stage
         self.cause = cause
 
@@ -83,7 +83,7 @@ class TranscriptionPipeline:
             with self.denoiser_factory() as denoiser:
                 self._stage("denoise", denoiser.denoise, raw_audio, denoised_audio)
         except Exception as exc:
-            print(f"[denoise] BềEqua khử ồn DeepFilterNet ({exc}) - dùng audio gốc")
+            print(f"[denoise] Bước khử ồn DeepFilterNet thất bại ({exc}); dùng âm thanh gốc.")
             shutil.copy(raw_audio, denoised_audio)
 
         notify("transcribe")
@@ -110,7 +110,7 @@ class TranscriptionPipeline:
                 with self.diarizer_factory() as diarizer:
                     speaker_turns = self._stage("diarize", diarizer.diarize, denoised_audio)
             except Exception as exc:
-                print(f"[diarize] BềEqua phân tách người nói ({exc}) - dùng speaker mặc định")
+                print(f"[diarize] Bước nhận diện người nói thất bại ({exc}); dùng nhãn mặc định.")
                 speaker_turns = []
 
         notify("merge")

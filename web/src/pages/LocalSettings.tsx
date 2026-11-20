@@ -15,7 +15,9 @@ export default function Admin() {
     mutationFn: () =>
       api.post<{ cookie_count: number; path: string }>("/api/admin/refresh-cookies", {}),
     onSuccess: (result) =>
-      setRefreshMessage(`Đã lấy ${result.cookie_count} cookie, lưu vào ${result.path}.`),
+      setRefreshMessage(
+        `Đã lấy ${result.cookie_count} cookie và lưu vào ${result.path}.`
+      ),
     onError: (err) =>
       setRefreshMessage(err instanceof ApiError ? err.message : "Làm mới cookie thất bại."),
   });
@@ -31,16 +33,16 @@ export default function Admin() {
     <div className="min-h-screen">
       <NavBar />
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="mb-6 text-2xl font-bold">Quản trềEhềEthống</h1>
+        <h1 className="mb-6 text-2xl font-bold">Cài đặt và quản lý</h1>
 
         <section className="card mb-8">
-          <h2 className="mb-2 text-lg font-semibold">Cookie tải video (YouTube)</h2>
+          <h2 className="mb-2 text-lg font-semibold">Tệp cookie tải video (YouTube)</h2>
           <p className="mb-3 text-sm text-ink-soft">
-            Lấy lại cookie mới từ trình duyệt đã đăng nhập sẵn (cần chạy{" "}
+            Làm mới dữ liệu xác thực (cookie) từ trình duyệt đã đăng nhập (cần chạy{" "}
             <code className="rounded bg-cream px-1">
               python -m pipeline.infrastructure.cookie_refresh --setup
             </code>{" "}
-            một lần trên máy chủ trước). Dùng khi tải video báo lỗi "YouTube yêu cầu xác thực".
+            một lần trên máy tính trước). Dùng khi YouTube báo lỗi yêu cầu xác thực.
           </p>
           <button
             className="btn-primary"
@@ -48,20 +50,22 @@ export default function Admin() {
             onClick={() => refreshCookies.mutate()}
           >
             {refreshCookies.isPending && <Spinner />}
-            {refreshCookies.isPending ? "Đang lấy cookie..." : "Làm mới cookie"}
+            {refreshCookies.isPending
+              ? "Đang làm mới dữ liệu xác thực..."
+              : "Làm mới dữ liệu xác thực"}
           </button>
           {refreshMessage && <p className="mt-3 text-sm">{refreshMessage}</p>}
         </section>
 
         <section className="card">
-          <h2 className="mb-4 text-lg font-semibold">Toàn bộ job ({jobs.length})</h2>
+          <h2 className="mb-4 text-lg font-semibold">Toàn bộ tác vụ ({jobs.length})</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-ink-soft">
-                  <th className="py-2 pr-4">File</th>
+                  <th className="py-2 pr-4">Tệp</th>
                   <th className="py-2 pr-4">Trạng thái</th>
-                  <th className="py-2 pr-4">Bước</th>
+                  <th className="py-2 pr-4">Bước xử lý</th>
                   <th className="py-2">Tạo lúc</th>
                 </tr>
               </thead>
@@ -92,7 +96,7 @@ export default function Admin() {
                 {!jobsLoading && jobs.length === 0 && (
                   <tr>
                     <td colSpan={4} className="py-4 text-center text-ink-soft">
-                      Chưa có job nào.
+                      Chưa có tác vụ nào.
                     </td>
                   </tr>
                 )}

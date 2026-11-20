@@ -83,11 +83,11 @@ export default function Editor() {
   const saveSegments = useMutation({
     mutationFn: () => api.put(`/api/jobs/${id}/subtitles/${language}`, { segments: rows }),
     onSuccess: () => {
-      setSaveMessage("Đã lưu và xuất lại file phụ đề");
+      setSaveMessage("Đã lưu và xuất lại tệp phụ đề.");
       queryClient.invalidateQueries({ queryKey: ["job-files", id] });
     },
     onError: (err) =>
-      setSaveMessage(err instanceof ApiError ? err.message : "Lưu thất bại, thử lại."),
+      setSaveMessage(err instanceof ApiError ? err.message : "Không lưu được. Vui lòng thử lại."),
   });
 
   const translate = useMutation({
@@ -95,10 +95,10 @@ export default function Editor() {
       api.post(`/api/jobs/${id}/translate`, { target_language: translateLanguage }),
     onSuccess: () =>
       setTranslateMessage(
-        `Đã gửi yêu cầu dịch sang '${languageName(translateLanguage)}'. Chạy ngầm vài phút, quay lại tab Chỉnh sửa phụ đề sau đó để xem.`
+        `Đã gửi yêu cầu dịch sang ${languageName(translateLanguage)}. Quá trình có thể mất vài phút; hãy quay lại mục Chỉnh sửa phụ đề để xem kết quả.`
       ),
     onError: (err) =>
-      setTranslateMessage(err instanceof ApiError ? err.message : "Gửi yêu cầu dịch thất bại."),
+      setTranslateMessage(err instanceof ApiError ? err.message : "Không gửi được yêu cầu dịch."),
   });
 
   const dub = useMutation({
@@ -111,10 +111,10 @@ export default function Editor() {
       }),
     onSuccess: () =>
       setDubMessage(
-        "Đã gửi yêu cầu dịch + lồng tiếng (chạy ngầm, có thềEmất vài phút). Video kết quả sẽ xuất hiện trong Studio."
+        "Đã gửi yêu cầu dịch và lồng tiếng. Quá trình có thể mất vài phút; video kết quả sẽ xuất hiện trong bảng điều khiển."
       ),
     onError: (err) =>
-      setDubMessage(err instanceof ApiError ? err.message : "Gửi yêu cầu lồng tiếng thất bại."),
+      setDubMessage(err instanceof ApiError ? err.message : "Không gửi được yêu cầu lồng tiếng."),
   });
 
   function updateRow(index: number, patch: Partial<SubtitleSegment>) {
@@ -142,9 +142,9 @@ export default function Editor() {
         <NavBar />
         <main className="mx-auto max-w-5xl px-4 py-8">
           <div className="card text-ink-soft">
-            Job này chưa xử lý xong, chưa thể sửa phụ đề{" "}
+            Tác vụ này chưa xử lý xong nên chưa thể sửa phụ đề.{" "}
             <Link to={`/studio/jobs/${id}`} className="text-primary hover:underline">
-              Xem tiến độ
+              Xem tiến trình
             </Link>
           </div>
         </main>
@@ -160,9 +160,11 @@ export default function Editor() {
       <NavBar />
       <main className="mx-auto max-w-5xl px-4 py-8">
         <Link to={`/studio/jobs/${id}`} className="text-sm text-ink-soft hover:text-primary">
-          ← Quay lại chi tiết job
+          ← Quay lại chi tiết tác vụ
         </Link>
-        <h1 className="mb-1 mt-2 break-all text-2xl font-bold">Sửa phụ đề {job.filename}</h1>
+        <h1 className="mb-1 mt-2 break-all text-2xl font-bold">
+          Chỉnh sửa phụ đề: {job.filename}
+        </h1>
 
         <div className="mb-6 mt-4 flex gap-2 border-b border-line">
           {TABS.map((t) => (
@@ -213,7 +215,9 @@ export default function Editor() {
                 <div className="card text-ink-soft">Không tìm thấy phụ đề cho ngôn ngữ này.</div>
               )}
               {!segmentsLoading && !segmentsError && files && files.subtitles.length === 0 && (
-                <div className="card text-ink-soft">Job này chưa có phụ đề nào để sửa.</div>
+                <div className="card text-ink-soft">
+                  Tác vụ này chưa có phụ đề nào để chỉnh sửa.
+                </div>
               )}
               {!segmentsLoading && rows.length > 0 && (
                 <>
@@ -285,7 +289,7 @@ export default function Editor() {
                       onClick={() => saveSegments.mutate()}
                     >
                       {saveSegments.isPending && <Spinner className="h-3 w-3" />}
-                      {saveSegments.isPending ? "Đang lưu..." : "Lưu và xuất lại file"}
+                      {saveSegments.isPending ? "Đang lưu..." : "Lưu và xuất lại tệp"}
                     </button>
                   </div>
                   {saveMessage && <p className="mt-2 text-sm text-ink-soft">{saveMessage}</p>}
@@ -298,7 +302,7 @@ export default function Editor() {
         {tab === "translate" && (
           <div className="card max-w-lg space-y-4">
             <p className="text-sm text-ink-soft">
-              Chỉ xuất phụ đề đã dịch (không tạo audio). File kết quả có hậu tố ngôn ngữ, ví dụ
+              Chỉ xuất phụ đề đã dịch (không tạo âm thanh). Tệp kết quả có mã ngôn ngữ, ví dụ
               video.en.srt.
             </p>
             <div>
@@ -322,7 +326,7 @@ export default function Editor() {
               onClick={() => translate.mutate()}
             >
               {translate.isPending && <Spinner className="h-3 w-3" />}
-              {translate.isPending ? "Đang gửi..." : "Dịch và xuất file mới"}
+              {translate.isPending ? "Đang gửi yêu cầu..." : "Dịch và xuất tệp mới"}
             </button>
             {translateMessage && <p className="text-sm text-ink-soft">{translateMessage}</p>}
           </div>
@@ -331,9 +335,9 @@ export default function Editor() {
         {tab === "dub" && (
           <div className="card max-w-lg space-y-4">
             <p className="text-sm text-ink-soft">
-              Tự động dịch (nếu chưa có) rồi lồng tiếng lại với ngôn ngữ/giọng/chế độ khác. Nếu
-              video có nhiều người nói, giọng chọn bên dưới áp dụng cho người nói đầu tiên - các
-              người nói khác tự động nhận giọng khác nhau.
+              Tự động dịch nếu chưa có bản dịch, sau đó lồng tiếng lại bằng ngôn ngữ, giọng đọc
+              hoặc chế độ khác. Nếu video có nhiều người nói, giọng bên dưới áp dụng cho người nói
+              đầu tiên; những người còn lại sẽ tự động được gán giọng khác.
             </p>
             <div>
               <label className="label">Ngôn ngữ lồng tiếng</label>
@@ -353,13 +357,13 @@ export default function Editor() {
               </select>
             </div>
             <div>
-              <label className="label">Giọng đã clone (tuỳ chọn)</label>
+              <label className="label">Giọng đã tạo (không bắt buộc)</label>
               <select
                 className="input"
                 value={dubCustomVoiceId ?? ""}
                 onChange={(e) => setDubCustomVoiceId(e.target.value || null)}
               >
-                <option value="">Không dùng - chọn giọng có sẵn bên dưới</option>
+                <option value="">Không dùng, chọn giọng có sẵn bên dưới</option>
                 {customVoices.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name}
@@ -368,7 +372,7 @@ export default function Editor() {
               </select>
               {customVoices.length === 0 && (
                 <p className="mt-1 text-xs text-ink-soft">
-                  Chưa có giọng nào được clone - tạo ềEtrang{" "}
+                  Chưa có giọng nào được tạo. Hãy tạo giọng tại{" "}
                   <Link to="/voices" className="underline">
                     Giọng của tôi
                   </Link>
@@ -408,7 +412,7 @@ export default function Editor() {
               onClick={() => dub.mutate()}
             >
               {dub.isPending && <Spinner className="h-3 w-3" />}
-              {dub.isPending ? "Đang gửi..." : "Dịch + Lồng tiếng"}
+              {dub.isPending ? "Đang gửi yêu cầu..." : "Dịch và lồng tiếng"}
             </button>
             {dubMessage && <p className="text-sm text-ink-soft">{dubMessage}</p>}
           </div>

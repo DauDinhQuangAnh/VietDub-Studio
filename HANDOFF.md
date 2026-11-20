@@ -1612,6 +1612,26 @@ LLM - viec sau" o muc 6j):
 
 ## 9. Nhat ky cap nhat
 
+- 2026-11-20 (lan 4): **Sua job treo o buoc "Khoi dong"**. Log Celery cho
+  thay worker da san sang nhung nhan task
+  `worker.jobs.job_tasks.process_video_job` roi bao "unregistered" va discard.
+  Nguyen nhan: Celery autodiscover mac dinh tim `tasks.py`, trong khi module
+  cua du an da duoc doi ten thanh `job_tasks.py`. Khai bao truc tiep module
+  trong `Celery(include=...)`; them test hoi quy. Ruff pass, `pytest`
+  132/132 pass; nap default modules trong process moi da xac nhan ca 3 task
+  (`process_video_job`, `translate_job`, `dub_job`) duoc register. Worker dang
+  chay luc phat hien van la process cu, can khoi dong lai app; task loi cu da
+  bi Celery discard nen can bam "Chay lai" hoac tao lai job sau khi restart.
+
+- 2026-11-20 (lan 3): **Chuan hoa tieng Viet co dau tren giao dien** theo yeu
+  cau nguoi dung. Sua nhan va thong bao tren cac trang React, nhan tien do,
+  loi API/worker/pipeline va lien tai tep; xu ly cac chuoi bi loi ma hoa;
+  viet lai huong dan cookie de de hieu hon. Cap nhat `docs/CODE_STYLE.md` de
+  ap dung quy uoc tieng Viet co dau cho UI va thong bao hien thi, dong thoi
+  giu nguyen ten thuong hieu/model/dinh dang tep. Xac nhan `web/index.html`
+  khai bao ngon ngu `vi`; Ruff check/format pass, `pytest` 131/131 pass
+  (1 canh bao Starlette deprecation), `npm run build` pass.
+
 - 2026-11-20 (lan 2): **Gom launcher, don cache va cai lai Python environment**
   theo yeu cau nguoi dung - xoa `run_local.ps1`, chi de 2 file `.bat` lam nut
   Start/Stop; xoa cache Python/test/lint va web build, nhung giu `.env`,

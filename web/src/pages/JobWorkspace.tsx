@@ -33,9 +33,9 @@ export default function JobDetail() {
 
   const sendEmail = useMutation({
     mutationFn: () => api.post<{ sent_to: string }>(`/api/jobs/${id}/send-email`, {}),
-    onSuccess: (result) => setEmailMessage(`Đã gửi link tới ${result.sent_to}.`),
+    onSuccess: (result) => setEmailMessage(`Đã gửi đường dẫn tới ${result.sent_to}.`),
     onError: (err) =>
-      setEmailMessage(err instanceof ApiError ? err.message : "Gửi email thất bại."),
+      setEmailMessage(err instanceof ApiError ? err.message : "Gửi thư điện tử thất bại."),
   });
 
   const { data: job } = useQuery({
@@ -71,7 +71,7 @@ export default function JobDetail() {
 
   async function saveVideoAs(name: string) {
     if (!window.showSaveFilePicker) {
-      setSaveMessage("Trình duyệt này chưa hềEtrợ chọn nơi lưu. Hãy dùng nút Tải video.");
+      setSaveMessage("Trình duyệt này không hỗ trợ chọn nơi lưu. Hãy dùng nút Tải video.");
       return;
     }
 
@@ -82,17 +82,17 @@ export default function JobDetail() {
         suggestedName: name,
         types: [
           {
-            description: "Video",
+            description: "Tệp video",
             accept: { "video/mp4": [".mp4"], "video/x-matroska": [".mkv"] },
           },
         ],
       });
       const response = await fetch(fileUrl(id, name));
-      if (!response.ok) throw new Error("Không tải được file kết quả.");
+      if (!response.ok) throw new Error("Không tải được tệp kết quả.");
       const writable = await handle.createWritable();
       await writable.write(await response.blob());
       await writable.close();
-      setSaveMessage("Đã lưu video vào vềEtrí bạn chọn.");
+      setSaveMessage("Đã lưu video vào vị trí bạn chọn.");
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setSaveMessage(err instanceof Error ? err.message : "Không lưu được video.");
@@ -106,7 +106,7 @@ export default function JobDetail() {
       <NavBar />
       <main className="mx-auto max-w-4xl px-4 py-8">
         <Link to="/studio" className="text-sm text-ink-soft hover:text-primary">
-          ← Quay lại Studio
+          ← Quay lại bảng điều khiển
         </Link>
         <h1 className="mb-1 mt-2 break-all text-2xl font-bold">{job.filename}</h1>
         <p className="mb-6 text-sm text-ink-soft">
@@ -132,9 +132,9 @@ export default function JobDetail() {
         {job.status === "done" && resultVideo && (
           <section className="overflow-hidden rounded-xl border border-line bg-white shadow-sm">
             <div className="border-b border-line px-4 py-3">
-              <h2 className="text-base font-semibold text-ink">Clip kết quả</h2>
+              <h2 className="text-base font-semibold text-ink">Video kết quả</h2>
               <p className="mt-0.5 text-xs text-ink-soft">
-                Video đã xử lý xong, có thềExem trực tiếp hoặc tải vềE
+                Video đã xử lý xong. Bạn có thể xem trực tiếp hoặc tải về.
               </p>
             </div>
             <div className="p-4">
@@ -158,7 +158,7 @@ export default function JobDetail() {
                     onClick={() => sendEmail.mutate()}
                   >
                     {sendEmail.isPending && <Spinner className="h-3 w-3" />}
-                    {sendEmail.isPending ? "Đang gửi..." : "Gửi về email"}
+                    {sendEmail.isPending ? "Đang gửi..." : "Gửi qua thư điện tử"}
                   </button>
                   <button
                     type="button"
@@ -167,7 +167,7 @@ export default function JobDetail() {
                     onClick={() => saveVideoAs(resultVideo.name)}
                   >
                     {isSaving && <Spinner className="h-3 w-3" />}
-                    {isSaving ? "Đang lưu..." : "Chọn nơi lưu"}
+                    {isSaving ? "Đang lưu..." : "Chọn vị trí lưu"}
                   </button>
                   <a href={fileUrl(id, resultVideo.name)} download className="btn-primary">
                     Tải video ({(resultVideo.size_bytes / 1024 / 1024).toFixed(1)} MB)
@@ -182,7 +182,7 @@ export default function JobDetail() {
 
         {job.status === "done" && files && !resultVideo && (
           <div className="card flex items-center justify-between gap-3 text-ink-soft">
-            Chưa tìm thấy clip kết quả.
+            Chưa tìm thấy video kết quả.
             <Link to={`/studio/jobs/${id}/edit`} className="btn-ghost shrink-0">
               Sửa phụ đề
             </Link>

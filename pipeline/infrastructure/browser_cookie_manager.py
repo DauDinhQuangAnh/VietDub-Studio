@@ -106,11 +106,10 @@ def setup_login_session(
             page.goto(url, wait_until="load", timeout=30_000)
 
         print(
-            "Da mo trinh duyet - dang nhap YouTube (khuyen nghi) trong cua "
-            "so vua mo, roi quay lai day.",
+            "Trình duyệt đã mở. Hãy đăng nhập YouTube trong cửa sổ vừa mở, sau đó quay lại đây.",
             file=sys.stderr,
         )
-        input("Nhan Enter sau khi dang nhap xong (hoac bo qua neu chi can cookie an danh)...")
+        input("Nhấn Enter sau khi đăng nhập xong (hoặc bỏ qua nếu chỉ cần cookie ẩn danh)...")
         context.close()
 
 
@@ -133,13 +132,13 @@ def refresh_cookies(
 
     if not profile_dir.exists():
         raise RuntimeError(
-            f"Chua tung chay setup dang nhap (khong thay {profile_dir}). "
-            "Chay 'python -m pipeline.infrastructure.browser_cookie_manager --setup' "
-            "1 lan truoc de dang nhap YouTube, roi moi chay lai --refresh."
+            f"Chưa khởi tạo đăng nhập (không tìm thấy {profile_dir}). "
+            "Hãy chạy 'python -m pipeline.infrastructure.browser_cookie_manager --setup' "
+            "một lần để đăng nhập YouTube, sau đó chạy lại --refresh."
         )
 
     sites = sites or DEFAULT_SITES
-    print("Dang mo trinh duyet an de lay cookie moi...", file=sys.stderr)
+    print("Đang mở trình duyệt nền để làm mới cookie...", file=sys.stderr)
 
     with sync_playwright() as p:
         context = p.chromium.launch_persistent_context(
@@ -158,11 +157,11 @@ def refresh_cookies(
 def _main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Quản lý dữ liệu xác thực YouTube.")
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--setup", action="store_true", help="Mo trinh duyet that de dang nhap 1 lan")
+    mode.add_argument("--setup", action="store_true", help="Mở trình duyệt để đăng nhập một lần")
     mode.add_argument(
-        "--refresh", action="store_true", help="Chay an, lay cookie moi tu profile da luu"
+        "--refresh", action="store_true", help="Mở trình duyệt nền để làm mới dữ liệu xác thực"
     )
     args = parser.parse_args()
 
@@ -170,10 +169,10 @@ def _main() -> None:
 
     if args.setup:
         setup_login_session()
-        print(f"Da luu profile vao {DEFAULT_PROFILE_DIR}.")
+        print(f"Đã lưu hồ sơ đăng nhập vào {DEFAULT_PROFILE_DIR}.")
     else:
         count = refresh_cookies(output_path=cookies_path)
-        print(f"Da ghi {count} cookie vao {cookies_path}.")
+        print(f"Đã ghi {count} cookie vào {cookies_path}.")
 
 
 if __name__ == "__main__":

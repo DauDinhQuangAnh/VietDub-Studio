@@ -27,9 +27,9 @@ const STEPS = [
   { key: "source", title: "Nguồn", desc: "Video và ngôn ngữ" },
   { key: "voice", title: "Giọng đọc", desc: "Âm thanh và người nói" },
   { key: "translate", title: "Dịch", desc: "Giọng điệu và ngữ cảnh" },
-  { key: "subtitle", title: "Phụ đề", desc: "Kiểu dáng và mật độ" },
-  { key: "audio", title: "Âm thanh & Xuất", desc: "Phối âm và định dạng" },
-  { key: "review", title: "Xem lại", desc: "Cấu hình đã xác nhận" },
+  { key: "subtitle", title: "Phụ đề", desc: "Kiểu dáng và cách hiển thị" },
+  { key: "audio", title: "Âm thanh và tệp xuất", desc: "Phối âm và định dạng" },
+  { key: "review", title: "Xem lại", desc: "Kiểm tra cấu hình" },
 ];
 
 type SourceMode = "upload" | "download";
@@ -103,7 +103,7 @@ export default function NewJob() {
   const analyzeSource = useMutation({
     mutationFn: async () => {
       const submittedUrl = videoUrl.trim();
-      if (!submittedUrl) throw new Error("Hãy dán link YouTube/Douyin trước.");
+      if (!submittedUrl) throw new Error("Vui lòng nhập đường dẫn video trước.");
       return api.post<VideoMetadata>("/api/jobs/source/analyze", { url: submittedUrl });
     },
     onSuccess: (metadata) => {
@@ -142,8 +142,8 @@ export default function NewJob() {
     sourceMode === "upload" ? Boolean(file) : Boolean(videoMetadata && selectedQuality);
   const sourceName =
     sourceMode === "upload"
-      ? (file?.name ?? "(chưa chọn file)")
-      : (videoMetadata?.title ?? "(chưa phân tích link)");
+      ? (file?.name ?? "(chưa chọn tệp)")
+      : (videoMetadata?.title ?? "(chưa phân tích đường dẫn)");
   // Only the source step has required user input; later steps have valid defaults.
   const canAdvanceFromStep = (index: number) => (index === 0 ? sourceValid : true);
   const selectedVoice =
@@ -203,7 +203,7 @@ export default function NewJob() {
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">
               Tạo video · Bước {step + 1} / {STEPS.length}
             </p>
-            <h1 className="text-2xl font-bold">Quick Video</h1>
+            <h1 className="text-2xl font-bold">Tạo video</h1>
           </div>
           <Link to="/studio" className="btn-ghost">
             Hủy
@@ -278,9 +278,11 @@ export default function NewJob() {
                   />
 
                   <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary-soft/40 px-4 py-3 text-xs">
-                    <span>💡 ChềEmuốn tải video/âm thanh từ YouTube, TikTok... vềEmáy (không qua dịch AI)?</span>
+                    <span>
+                      💡 Chỉ muốn tải video hoặc âm thanh về máy, không cần dịch bằng AI?
+                    </span>
                     <Link to="/downloader" className="font-semibold text-primary underline">
-                      👉 MềEcông cụ Tải Nhanh
+                      👉 Mở công cụ tải video
                     </Link>
                   </div>
 
@@ -304,12 +306,12 @@ export default function NewJob() {
                         }}
                       >
                         <span className="font-semibold">
-                          {mode === "upload" ? "Insert video" : "Tải từ link"}
+                          {mode === "upload" ? "Tải tệp lên" : "Tải từ đường dẫn"}
                         </span>
                         <p className="mt-1 text-xs text-ink-soft">
                           {mode === "upload"
-                            ? "Chọn file có sẵn trên máy."
-                            : "YouTube, Douyin hoặc link yt-dlp hềEtrợ."}
+                            ? "Chọn video hoặc âm thanh có sẵn trên máy."
+                            : "Hỗ trợ YouTube, Douyin và các nguồn tương thích với yt-dlp."}
                         </p>
                       </button>
                     ))}
@@ -317,7 +319,7 @@ export default function NewJob() {
 
                   {sourceMode === "upload" && (
                     <div>
-                      <label className="label">File video/audio (tối đa 500MB)</label>
+                      <label className="label">Tệp video hoặc âm thanh (tối đa 500 MB)</label>
                       <input
                         type="file"
                         accept=".mp4,.mkv,.mov,.wav,.mp3,.m4a"
@@ -338,7 +340,7 @@ export default function NewJob() {
                   {sourceMode === "download" && (
                     <div className="space-y-4">
                       <div>
-                        <label className="label">Link video</label>
+                        <label className="label">Đường dẫn video</label>
                         <div className="flex flex-col gap-2 sm:flex-row">
                           <input
                             type="url"
@@ -362,7 +364,7 @@ export default function NewJob() {
                           </button>
                         </div>
                         <p className="mt-1 text-xs text-ink-soft">
-                          Video tải vềEchềElưu tạm trong thư mục job, xử lý xong sẽ tự xóa nguồn.
+                          Video tải về được lưu tạm trong thư mục tác vụ và tự xóa sau khi xử lý.
                         </p>
                       </div>
 
@@ -370,7 +372,7 @@ export default function NewJob() {
                         <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
                           {analyzeSource.error instanceof Error
                             ? analyzeSource.error.message
-                            : "Không phân tích được link video"}
+                            : "Không phân tích được đường dẫn video."}
                         </p>
                       )}
 
@@ -416,7 +418,7 @@ export default function NewJob() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="label">Kiểm thử (chạy thử đoạn ngắn)</label>
+                      <label className="label">Thời lượng xử lý thử</label>
                       <select
                         className="input"
                         value={String(options.source.trim_seconds)}
@@ -465,7 +467,7 @@ export default function NewJob() {
 
               {step === 1 && (
                 <div className="space-y-5">
-                  <h2 className="text-lg font-semibold">Giọng đọc và cách diềE đạt</h2>
+                  <h2 className="text-lg font-semibold">Giọng đọc và cách diễn đạt</h2>
                   <label className="flex items-center gap-3">
                     <input
                       type="checkbox"
@@ -538,12 +540,12 @@ export default function NewJob() {
                                 : "border-line bg-white hover:border-primary/40")
                             }
                           >
-                            Giọng đã clone
+                            Giọng đã tạo
                           </button>
                         </div>
                         {customVoices.length === 0 && (
                           <p className="mt-1 text-xs text-ink-soft">
-                            Chưa có giọng nào được clone - tạo ềEtrang{" "}
+                            Chưa có giọng nào được tạo. Hãy tạo giọng tại{" "}
                             <Link to="/voices" className="underline">
                               Giọng của tôi
                             </Link>
@@ -554,7 +556,7 @@ export default function NewJob() {
 
                       {usingClonedVoice ? (
                         <div>
-                          <label className="label">Chọn giọng đã clone</label>
+                          <label className="label">Chọn giọng đã tạo</label>
                           <select
                             className="input"
                             value={options.dubbing.custom_voice_id ?? ""}
@@ -571,7 +573,7 @@ export default function NewJob() {
                             ))}
                           </select>
                           <p className="mt-1 text-xs text-ink-soft">
-                            Giọng đã clone áp dụng cho toàn bộ video (chưa hỗ trợ gán riêng theo
+                            Giọng đã tạo áp dụng cho toàn bộ video (chưa hỗ trợ gán riêng theo
                             từng người nói, và bỏ qua tốc độ nói/cao độ bên dưới).
                           </p>
                         </div>
@@ -599,7 +601,7 @@ export default function NewJob() {
                                   }
                                 >
                                   <span className="font-medium">
-                                    {v.recommended && "⭁E"}
+                                    {v.recommended && "★ "}
                                     {v.label}
                                   </span>
                                   <p className="text-xs text-ink-soft">{v.style}</p>
@@ -607,8 +609,8 @@ export default function NewJob() {
                               ))}
                             </div>
                             <p className="mt-1 text-xs text-ink-soft">
-                              ⭁E= giọng bản địa. Video nhiều người nói sẽ tự gán thêm giọng khác
-                              nhau.
+                              ★ = giọng phù hợp với ngôn ngữ. Video có nhiều người nói sẽ được tự
+                              động gán thêm các giọng khác nhau.
                             </p>
                           </div>
 
@@ -682,11 +684,11 @@ export default function NewJob() {
 
               {step === 2 && (
                 <div className="space-y-5">
-                  <h2 className="text-lg font-semibold">Mục đích dịch</h2>
+                  <h2 className="text-lg font-semibold">Ngữ cảnh dịch</h2>
                   <p className="rounded-lg bg-cream px-4 py-2 text-sm text-ink-soft">
                     {options.dubbing.enabled ? (
                       <>
-                        Đang dịch/lồng tiếng sang{" "}
+                        Đang dịch và lồng tiếng sang{" "}
                         <strong>{languageName(options.dubbing.target_language)}</strong> — đổi
                         ngôn ngữ ở{" "}
                         <button
@@ -700,13 +702,13 @@ export default function NewJob() {
                       </>
                     ) : (
                       <>
-                        Lồng tiếng đang <strong>tắt</strong> (Bước 2) nên bước này sẽ không có
-                        tác dụng cho phụ đề gốc được xuất ra.
+                        Tính năng lồng tiếng đang <strong>tắt</strong> ở Bước 2 nên bản dịch sẽ
+                        không được tạo.
                       </>
                     )}
                   </p>
                   <div>
-                    <label className="label">Kiểu trình bày bản dịch</label>
+                    <label className="label">Cách trình bày phụ đề dịch</label>
                     <div className="flex flex-wrap gap-2">
                       {TRANSLATE_PRESETS.map((p, i) => (
                         <button
@@ -732,7 +734,7 @@ export default function NewJob() {
                   <div>
                     <div className="flex items-center justify-between">
                       <label className="label">
-                        Lĩnh vực / Chuyên ngành phát âm (Đã chọn{" "}
+                        Chủ đề và lĩnh vực (đã chọn{" "}
                         {(options.translation.pronunciation_domains || ["it"]).length} /{" "}
                         {PRONUNCIATION_DOMAIN_CHOICES.length})
                       </label>
@@ -764,7 +766,7 @@ export default function NewJob() {
                             })
                           }
                         >
-                          Mặc định (CNTT)
+                          Mặc định (công nghệ thông tin)
                         </button>
                       </div>
                     </div>
@@ -819,7 +821,8 @@ export default function NewJob() {
                     </div>
 
                     <p className="mt-2 text-xs text-ink-soft">
-                      💡 <strong>Tự động 100%:</strong> Chọn các chủ đề có trong video để bộ từ điển tự động gán âm đọc tiếng Việt chuẩn xác nhất mà không cần nhập tay.
+                      💡 <strong>Tự động:</strong> Chọn chủ đề có trong video để hệ thống ưu tiên
+                      cách đọc tiếng Việt phù hợp, không cần nhập từng từ.
                     </p>
                   </div>
                 </div>
@@ -839,8 +842,8 @@ export default function NewJob() {
                       }
                     />
                     <span>
-                      Gắn phụ đề vào video (hardsub){" "}
-                      <span className="text-sm text-ink-soft">— render lâu hơn</span>
+                      Gắn phụ đề cứng vào video{" "}
+                      <span className="text-sm text-ink-soft">— dựng video sẽ lâu hơn</span>
                     </span>
                   </label>
 
@@ -941,7 +944,7 @@ export default function NewJob() {
                   {/* Preview */}
                   <div>
                     <p className="mb-2 text-xs text-ink-soft">
-                      Kéo phụ đề bên dưới để đặt vào bất kỳ vị trí nào trên khung hình.
+                      Kéo dòng phụ đề để đặt vào vị trí mong muốn trên khung hình.
                     </p>
                     <div
                       ref={previewRef}
@@ -1039,7 +1042,7 @@ export default function NewJob() {
                       />
                       <span>
                         Giảm âm gốc khi có lời thoại{" "}
-                        <span className="text-sm text-ink-soft">(sidechain ducking)</span>
+                        <span className="text-sm text-ink-soft">(tự giảm âm nền khi có lời)</span>
                       </span>
                     </label>
                   </div>
@@ -1064,7 +1067,7 @@ export default function NewJob() {
                       </select>
                     </div>
                     <div>
-                      <label className="label">Chất lượng dựng (khi hardsub)</label>
+                      <label className="label">Tốc độ dựng (khi gắn phụ đề cứng)</label>
                       <select
                         className="input"
                         value={options.output.quality}
@@ -1092,25 +1095,27 @@ export default function NewJob() {
                 <div className="space-y-4">
                   <h2 className="text-lg font-semibold">Xem lại cấu hình đã xác nhận</h2>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <ReviewCard title="HẠ TẦNG XỬ LÝ">
+                    <ReviewCard title="CHẾ ĐỘ XỬ LÝ">
                       <p className="font-medium flex items-center gap-1.5">
-                        {options.execution_mode === "GPU_LOCAL" ? "🖥️ GPU Máy chủ Local" : "⚡ Cloud API Free (0% VRAM)"}
+                        {options.execution_mode === "GPU_LOCAL"
+                          ? "🖥️ GPU trên máy tính"
+                          : "⚡ Dịch vụ đám mây"}
                       </p>
                       <p className="text-xs text-ink-soft">
                         {options.execution_mode === "GPU_LOCAL"
                           ? "Faster-Whisper CUDA · Pyannote · VieNeu-TTS"
-                          : "Groq Whisper Large-v3 · Gemini LLM · Edge-TTS"}
+                          : "Groq Whisper Large-v3 · Gemini · Edge-TTS"}
                       </p>
                     </ReviewCard>
-                    <ReviewCard title="NGUỒN">
+                    <ReviewCard title="TỆP NGUỒN">
 
                       <p className="break-all font-medium">
                         {sourceName}
                       </p>
                       <p className="text-xs text-ink-soft">
                         {sourceMode === "download"
-                          ? `Tải từ link · ${selectedQuality}`
-                          : "Insert video"}{" "}
+                          ? `Tải từ đường dẫn · ${selectedQuality}`
+                          : "Tải tệp lên"}{" "}
                         ·{" "}
                         {options.source.source_language
                           ? languageName(options.source.source_language)
@@ -1118,7 +1123,7 @@ export default function NewJob() {
                         →{" "}
                         {options.dubbing.enabled
                           ? languageName(options.dubbing.target_language)
-                          : "chỉ phụ đề"}
+                          : "chỉ tạo phụ đề"}
                         {options.source.trim_seconds
                           ? ` · ${options.source.trim_seconds}s đầu`
                           : " · toàn bộ video"}
@@ -1140,13 +1145,13 @@ export default function NewJob() {
                     <ReviewCard title="DỊCH">
                       <p className="font-medium">{TRANSLATE_PRESETS[presetIndex].label}</p>
                       <p className="text-xs text-ink-soft">
-                        Bảng thuật ngữ:{" "}
+                        Số thuật ngữ:{" "}
                         {
                           options.translation.glossary
                             .split("\n")
                             .filter((l) => l.includes("=")).length
                         }{" "}
-                        mục · Bảng phát âm riêng:{" "}
+                        mục · Số cách đọc tùy chỉnh:{" "}
                         {
                           options.translation.pronunciation
                             .split("\n")
@@ -1157,36 +1162,39 @@ export default function NewJob() {
                     </ReviewCard>
                     <ReviewCard title="PHỤ ĐỀ">
                       <p className="font-medium">
-                        {options.subtitle.burn_in ? "Gắn cứng vào video" : "Xuất file rời"}
+                        {options.subtitle.burn_in ? "Gắn phụ đề vào video" : "Xuất tệp phụ đề riêng"}
                       </p>
                       <p className="text-xs text-ink-soft">
-                        {options.subtitle.style.font} {options.subtitle.style.font_size}px · vềE
-                        trí ({Math.round(options.subtitle.style.position_x)}%,{" "}
+                        {options.subtitle.style.font} {options.subtitle.style.font_size}px · vị trí{" "}
+                        ({Math.round(options.subtitle.style.position_x)}%,{" "}
                         {Math.round(options.subtitle.style.position_y)}%)
                       </p>
                     </ReviewCard>
-                    <ReviewCard title="ÁE THANH & ĐẦU RA">
+                    <ReviewCard title="ÂM THANH VÀ TỆP XUẤT">
                       <p className="font-medium">
                         Gốc {Math.round(options.audio.original_volume * 100)}% / Giọng{" "}
                         {Math.round(options.audio.dub_volume * 100)}%
                       </p>
                       <p className="text-xs text-ink-soft">
-                        {options.audio.ducking ? "Ducking bật · " : ""}
-                        {options.output.format.toUpperCase()} · {options.output.quality}
+                        {options.audio.ducking ? "Tự giảm âm nền · " : ""}
+                        {options.output.format.toUpperCase()} ·{" "}
+                        {RENDER_QUALITY_CHOICES.find(
+                          (quality) => quality.value === options.output.quality
+                        )?.label ?? options.output.quality}
                       </p>
                     </ReviewCard>
                   </div>
 
                   {!sourceValid && (
                     <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                      Chưa có nguồn hợp lệ — quay lại bước 1 để chọn file hoặc phân tích link.
+                      Chưa có nguồn hợp lệ. Hãy quay lại Bước 1 để chọn tệp hoặc kiểm tra đường dẫn.
                     </p>
                   )}
                   {createJob.isError && (
                     <p className="text-sm text-red-600">
                       {createJob.error instanceof Error
                         ? createJob.error.message
-                        : "Tạo job thất bại"}
+                        : "Không tạo được tác vụ."}
                     </p>
                   )}
                   <button
@@ -1197,8 +1205,8 @@ export default function NewJob() {
                     {createJob.isPending && <Spinner className="h-5 w-5" />}
                     {createJob.isPending
                       ? sourceMode === "download"
-                        ? "Đang tạo job tải video..."
-                        : "Đang tạo và tải lên..."
+                        ? "Đang tạo tác vụ tải video..."
+                        : "Đang tạo tác vụ và tải tệp lên..."
                       : "🚀 Tạo và khởi chạy"}
                   </button>
                 </div>
@@ -1221,7 +1229,7 @@ export default function NewJob() {
                   title={
                     canAdvanceFromStep(step)
                       ? undefined
-                      : "Vui lòng chọn file video trước khi tiếp tục"
+                      : "Vui lòng chọn tệp video trước khi tiếp tục."
                   }
                   onClick={() => {
                     setMaxStepReached((m) => Math.max(m, step + 1));

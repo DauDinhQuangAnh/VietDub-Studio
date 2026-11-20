@@ -45,3 +45,7 @@ def test_celery_falls_back_to_sqlite_when_local_redis_is_unavailable(tmp_path, m
     assert broker_url == f"sqla+sqlite:///{queue_path.as_posix()}"
     assert result_backend == f"db+sqlite:///{queue_path.as_posix()}"
     assert Path(queue_path).parent.is_dir()
+
+
+def test_celery_includes_renamed_job_task_module():
+    assert "worker.jobs.job_tasks" in celery_module.celery_app.conf.include

@@ -31,7 +31,7 @@ _MULTILINGUAL_VOICES = {
     "Emma (nữ, đa ngôn ngữ)": "en-US-EmmaMultilingualNeural",
     "Seraphina (nữ, đa ngôn ngữ)": "de-DE-SeraphinaMultilingualNeural",
     "Vivienne (nữ, đa ngôn ngữ)": "fr-FR-VivienneMultilingualNeural",
-    "Xiaoxiao ĐNN (nữ, đa ngôn ngữ)": "zh-CN-XiaoxiaoMultilingualNeural",
+    "Xiaoxiao (nữ, đa ngôn ngữ)": "zh-CN-XiaoxiaoMultilingualNeural",
     "Andrew (nam, đa ngôn ngữ)": "en-US-AndrewMultilingualNeural",
     "Brian (nam, đa ngôn ngữ)": "en-US-BrianMultilingualNeural",
     "Remy (nam, đa ngôn ngữ)": "fr-FR-RemyMultilingualNeural",

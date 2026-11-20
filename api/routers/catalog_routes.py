@@ -36,7 +36,8 @@ def voice_sample(body: VoiceSampleIn) -> Response:
         audio = synthesize_sample(body.language, body.voice, body.rate_percent, body.pitch_hz)
     except Exception as exc:
         raise HTTPException(
-            status_code=502, detail=f"Không tạo được mẫu giọng (cần internet): {exc}"
+            status_code=502,
+            detail=f"Không tạo được mẫu giọng. Hãy kiểm tra kết nối Internet. Chi tiết: {exc}",
         ) from exc
     return Response(content=audio, media_type="audio/mpeg")
 

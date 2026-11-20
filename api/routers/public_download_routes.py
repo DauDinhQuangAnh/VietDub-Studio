@@ -18,12 +18,12 @@ def download_shared_file(job_id: str, name: str, token: str = Query(...)) -> Fil
 
     job = job_repo().get(job_id)
     if job is None:
-        raise HTTPException(status_code=404, detail="Khong tim thay job")
+        raise HTTPException(status_code=404, detail="Không tìm thấy tác vụ.")
 
     output_dir = Path(job.output_dir)
     target = next((f for f in output_dir.glob("*.*") if f.name == name and f.is_file()), None)
     if target is None:
-        raise HTTPException(status_code=404, detail="Khong tim thay file")
+        raise HTTPException(status_code=404, detail="Không tìm thấy tệp.")
 
     media_type = "video/mp4" if target.suffix.lower() in (".mp4", ".mkv") else None
     return FileResponse(target, media_type=media_type, filename=target.name)
